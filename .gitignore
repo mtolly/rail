@@ -1,3 +1,4 @@
+rail-*
 dist
 cabal-dev
 *.o
