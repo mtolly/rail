@@ -1,0 +1,21 @@
+Name:               rail
+Version:            0.0.1
+Synopsis:           An esoteric language using train tracks for control flow.
+License:            GPL
+Author:             Michael Tolly
+Maintainer:         tolly@wisc.edu
+Build-Type:         Simple
+Cabal-version:      >= 1.8
+Category:           Data
+
+Library
+  Build-Depends:    base == 4.*, containers, transformers, array, split, void
+  Exposed-modules:  Data.ControlFlow
+                    Language.Rail
+  hs-source-dirs:   src
+  ghc-options:      -Wall
+
+Executable hrail
+  Main-Is:          Main.hs
+  Build-Depends:    base == 4.*, rail
+
