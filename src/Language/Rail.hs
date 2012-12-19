@@ -273,11 +273,15 @@ trySecondary d c = lookup d $ case c of
   '\\' -> zip [N,  W,  S,  E]  [NW, NW, SE, SE]
   _ -> [] -- can't be a secondary connection
 
+makeSystem :: Grid -> System (Posn, Direction) (Maybe String) Command
+makeSystem g = let
+  pds = [ (p, d) | p <- indices g, d <- [minBound .. maxBound] ]
+  paths = Map.fromList $ zip pds $ map (action g) pds
+  in System (Continue ((0, 0), SE)) paths
+
 -- | Compiles a single subroutine. The starting point ($) must be at (0, 0).
 makeSub :: Grid -> Sub
-makeSub g = let
-  pds = [ (p, d) | p <- indices g, d <- [minBound .. maxBound] ]
-  in flow (Continue ((0, 0), SE)) $ Map.fromList $ zip pds $ map (action g) pds
+makeSub = flow . makeSystem
 
 -- | A monad for executing Rail programs, combining ErrorT (for crash messages)
 -- with StateT (for the stack and variables).
