@@ -11,7 +11,8 @@ Category:           Data
 Library
   Build-Depends:    base == 4.*, containers, transformers, array, split, void
   Exposed-modules:  Data.ControlFlow
-                    Language.Rail
+                    Language.Rail.Base
+                    Language.Rail.Run
   hs-source-dirs:   src
   ghc-options:      -Wall
 
