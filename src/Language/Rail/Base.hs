@@ -5,6 +5,7 @@ import Data.List (intercalate)
 import Data.List.Split (splitOn)
 import Data.Array.Unboxed
 import Data.Char (isDigit)
+import Data.Maybe (mapMaybe)
 import qualified Data.Map as Map
 
 -- | TODO: lambda
@@ -248,8 +249,27 @@ trySecondary d c = lookup d $ case c of
   '\\' -> zip [N,  W,  S,  E]  [NW, NW, SE, SE]
   _ -> [] -- can't be a secondary connection
 
-makeSystem :: Grid -> System (Posn, Direction) (Maybe String) Command
+type Function = System (Posn, Direction) (Maybe String) Command
+
+makeSystem :: Grid -> Function
 makeSystem g = let
   pds = [ (p, d) | p <- indices g, d <- [minBound .. maxBound] ]
   paths = Map.fromList $ zip pds $ map (action g) pds
   in System (Continue ((0, 0), SE)) paths
+
+-- | Extracts the function name from the text of a single function.
+functionName :: String -> Maybe String
+functionName ('\'' : cs) = case span varChar cs of
+  (fun, '\'' : _) -> Just fun
+  _               -> Nothing
+functionName (c : cs) | c /= '\n' = functionName cs
+functionName _ = Nothing
+
+splitFunctions :: String -> [String]
+splitFunctions prog = case splitOn "\n$" ('\n' : prog) of
+  x : xs -> x : map ('$' :) xs
+  [] -> []
+
+getFunctions :: String -> [(String, Function)]
+getFunctions = mapMaybe f . splitFunctions
+  where f str = fmap (\n -> (n, makeSystem $ makeGrid str)) $ functionName str

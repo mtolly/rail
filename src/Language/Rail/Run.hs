@@ -11,8 +11,6 @@ import Control.Monad.Trans.Class (lift)
 import Control.Monad.IO.Class (liftIO)
 import System.IO (isEOF)
 import System.IO.Error (catchIOError, isEOFError)
-import Data.Maybe (mapMaybe)
-import Data.List.Split (splitOn)
 
 data Memory = Memory
   { stack     :: [Val]
@@ -161,26 +159,10 @@ call :: Sub -> Rail ()
 call sub = gets variables >>= \vs ->
   setVariables Map.empty >> run sub >> setVariables vs
 
--- | Extracts the function name from the text of a single function.
-functionName :: String -> Maybe String
-functionName ('\'' : cs) = case span varChar cs of
-  (fun, '\'' : _) -> Just fun
-  _               -> Nothing
-functionName (c : cs) | c /= '\n' = functionName cs
-functionName _ = Nothing
-
-splitFunctions :: String -> [String]
-splitFunctions prog = case splitOn "\n$" ('\n' : prog) of
-  x : xs -> x : map ('$' :) xs
-  [] -> []
-
-getFunctions :: String -> [(String, Sub)]
-getFunctions = mapMaybe f . splitFunctions
-  where f str = withSnd (makeSub $ makeGrid str) <$> functionName str
-        withSnd y x = (x, y)
-
 compile :: String -> Memory
-compile str = emptyMemory { functions = Map.fromList $ getFunctions str }
+compile str = emptyMemory
+  { functions = Map.fromList $ map (mapSnd flow) $ getFunctions str }
+  where mapSnd f (x, y) = (x, f y)
 
 runMemory :: Memory -> IO ()
 runMemory = runRail $ run $ Call "main" :>> End Nothing
