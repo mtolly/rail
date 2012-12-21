@@ -13,6 +13,7 @@ import Control.Monad.Trans.State (execState, gets, modify)
 import Control.Monad (unless)
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
+import Data.List (sort)
 
 -- | A partial control flow graph, with nodes of type 'a'. Each leaf of the tree
 -- ends in a value of type 'e', and the graph can also contain arbitrary labels
@@ -38,10 +39,10 @@ data System c e a = System
   } deriving (Eq, Ord, Show, Read, Functor, Foldable, Traversable)
 
 -- | Returns the set of all labels which are reachable from the start path.
-usedPaths :: Ord c => System c e a -> Set.Set c
+usedPaths :: (Ord c) => System c e a -> Set.Set c
 usedPaths sys = go (systemStart sys) `execState` Set.empty where
   go g = case g of
-    _ :>> next -> go next
+    _ :>> x -> go x
     x :|| y -> go x >> go y
     Continue label -> gets (Set.member label) >>= \b -> unless b $ do
       modify $ Set.insert label
@@ -51,11 +52,57 @@ usedPaths sys = go (systemStart sys) `execState` Set.empty where
   paths = systemPaths sys
 
 -- | Removes all unused continuations from the map.
-cleanPaths :: Ord c => System c e a -> System c e a
+cleanPaths :: (Ord c) => System c e a -> System c e a
 cleanPaths sys = let
   used = Map.fromDistinctAscList
     [(k, undefined) | k <- Set.toAscList $ usedPaths sys]
   in sys { systemPaths = systemPaths sys `Map.intersection` used }
+
+-- | The list of all labels directly continued to by the given path.
+continues :: (Ord c) => Go c e a -> [c]
+continues g = case g of
+  _ :>> x    -> continues x
+  x :|| y    -> continues x ++ continues y
+  Continue c -> [c]
+  End _      -> []
+
+-- | 'replaceContinue l x g' finds all places where 'g' continues to the label
+-- 'l', and replaces them with the path 'x'.
+replaceContinue :: (Eq c) => c -> Go c e a -> Go c e a -> Go c e a
+replaceContinue cfrom gto = go where
+  go g = case g of
+    v :>> x -> v    :>> go x
+    x :|| y -> go x :|| go y
+    Continue c | c == cfrom -> gto
+    _       -> g
+
+mapPaths :: (Go c e a -> Go c e' a') -> System c e a -> System c e' a'
+mapPaths f sys = System
+  { systemStart = f $ systemStart sys
+  , systemPaths = fmap f $ systemPaths sys }
+
+systemUnroll :: (Ord c) => c -> System c e a -> System c e a
+systemUnroll c sys = case Map.lookup c $ systemPaths sys of
+  Nothing -> sys
+  Just path -> mapPaths (replaceContinue c path) $
+    sys { systemPaths = Map.delete c $ systemPaths sys }
+
+usedOnce :: (Ord c) => System c e a -> [c]
+usedOnce sys = unique $ concatMap continues $
+  systemStart sys : Map.elems (systemPaths sys)
+
+-- | Sorts a list, and then returns only elements that appear just once.
+unique :: (Ord a) => [a] -> [a]
+unique = go . sort where
+  go (x : y : xs) = if x == y
+    then go $ dropWhile (== x) xs
+    else x : go (y : xs)
+  go xs = xs
+
+-- | For each path which is only referenced in one location, removes the path
+-- and pastes its contents into the place it was referenced.
+simplifyPaths :: (Ord c) => System c e a -> System c e a
+simplifyPaths sys = foldr ($) sys $ map systemUnroll $ usedOnce sys
 
 -- | Given a start point and a mapping from continutation labels to code
 -- chunks, creates a single structure embedding the entire control flow.
@@ -67,8 +114,8 @@ flow sys = let
   getFlow label = fromMaybe (error "flow: missing continue") $
     Map.lookup label flows
   toFlow g = case g of
-    x :>> next -> x :>> toFlow next
-    x :|| y -> toFlow x :|| toFlow y
-    Continue label -> getFlow label
-    End x -> End x
+    v :>> x    -> v :>> toFlow x
+    x :|| y    -> toFlow x :|| toFlow y
+    Continue c -> getFlow c
+    End e      -> End e
   in toFlow $ systemStart sys
