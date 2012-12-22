@@ -10,6 +10,10 @@
 #define NIL 1
 #define PAIR 2
 
+/***
+ * Types and globals
+ */
+
 struct pair {
   struct value *car;
   struct value *cdr;
@@ -35,6 +39,10 @@ struct stack_node *stack = NULL;
 int stack_size = 0;
 int condition = 0;
 
+/***
+ * Pushing and creating values
+ */
+
 void push(struct value *v) {
   if (v == NULL) {
     printf("push: tried to push null pointer\n");
@@ -58,6 +66,14 @@ struct value *new_str(char *str) {
   v->uvalue = uv;
   v->references = 0;
   return v;
+}
+
+// Makes a new copy of a string, and creates a value from that.
+struct value *new_str_copy(char *str) {
+  int len = strlen(str);
+  char *buf = malloc(len + 1);
+  strncpy(buf, str, len + 1);
+  return new_str(buf);
 }
 
 struct value *new_int(int i) {
@@ -92,6 +108,10 @@ struct value *new_nil() {
   v->references = 0;
   return v;
 }
+
+/***
+ * Popping and deconstructing values
+ */
 
 // If the returned value's references is 0, caller is responsible for freeing.
 struct value *pop() {
@@ -162,16 +182,8 @@ int pop_int() {
   return i;
 }
 
-// Makes a new copy of a string, and creates a value from that.
-struct value *new_str_copy(char *str) {
-  int len = strlen(str);
-  char *buf = malloc(len + 1);
-  strncpy(buf, str, len + 1);
-  return new_str(buf);
-}
-
 /***
- * BUILTINS
+ * Built-in operations
  */
 
 void builtin_boom() {
