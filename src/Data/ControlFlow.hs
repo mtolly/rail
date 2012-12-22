@@ -1,4 +1,8 @@
-{-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
+{-# LANGUAGE
+  DeriveFunctor,
+  DeriveFoldable,
+  DeriveTraversable,
+  DeriveDataTypeable #-}
 -- | A data structure for modeling control flow graphs. Basic blocks can be
 -- constructed separately, with arbitrary IDs attached to each one; you can
 -- then generate a single circular structure for the entire graph, taking up
@@ -14,6 +18,7 @@ import Control.Monad (unless)
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
 import Data.List (sort)
+import Data.Data (Data, Typeable)
 
 -- | A partial control flow graph, with nodes of type 'a'. Each leaf of the tree
 -- ends in a value of type 'e', and the graph can also contain arbitrary labels
@@ -23,7 +28,10 @@ data Go c e a
   | Go c e a :|| Go c e a -- ^ Branch
   | Continue c
   | End e
-  deriving (Eq, Ord, Show, Read, Functor, Foldable, Traversable)
+  deriving
+    ( Eq, Ord, Show, Read
+    , Functor, Foldable, Traversable
+    , Data, Typeable )
 
 infixr 1 :>>
 infix  1 :||

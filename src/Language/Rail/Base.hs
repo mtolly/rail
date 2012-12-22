@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveDataTypeable #-}
 module Language.Rail.Base where
 
 import Data.ControlFlow
@@ -7,6 +8,7 @@ import Data.Array.Unboxed
 import Data.Char (isDigit)
 import Data.Maybe (mapMaybe)
 import qualified Data.Map as Map
+import Data.Data (Data, Typeable)
 
 -- | TODO: lambda
 data Command
@@ -33,18 +35,18 @@ data Command
   | Greater
   | Equal
   | SetBranch -- ^ pop a bool value, set the state's condition
-  deriving (Eq, Ord, Show, Read)
+  deriving (Eq, Ord, Show, Read, Data, Typeable)
 
 -- | TODO: lambda
 data Val
   = Str String
   | Nil
   | Pair Val Val
-  deriving (Eq, Ord, Show, Read)
+  deriving (Eq, Ord, Show, Read, Data, Typeable)
 
 type Posn = (Int, Int)
 data Direction = N | NE | E | SE | S | SW | W | NW
-  deriving (Eq, Ord, Show, Read, Enum, Bounded)
+  deriving (Eq, Ord, Show, Read, Enum, Bounded, Data, Typeable)
 type Grid = UArray Posn Char
 
 char :: Grid -> Posn -> Char
@@ -251,11 +253,13 @@ trySecondary d c = lookup d $ case c of
 
 type Function = System (Posn, Direction) (Maybe String) Command
 
+-- | Reads a single function from a grid. The function beginning ($) must be
+-- at (0, 0), going southeast.
 makeSystem :: Grid -> Function
 makeSystem g = let
   pds = [ (p, d) | p <- indices g, d <- [minBound .. maxBound] ]
   paths = Map.fromList $ zip pds $ map (action g) pds
-  in System (Continue ((0, 0), SE)) paths
+  in simplifyPaths $ cleanPaths $ System (Continue ((0, 0), SE)) paths
 
 -- | Extracts the function name from the text of a single function.
 functionName :: String -> Maybe String
