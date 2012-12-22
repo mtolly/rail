@@ -43,9 +43,6 @@ varName v = "var_" ++ mangle v
 funName :: String -> String
 funName f = "fun_" ++ mangle f
 
-builtinName :: String -> String
-builtinName b = "builtin_" ++ mangle b
-
 -- | Turns ((4, 7), NE) into "NE_4_7".
 makeLabel :: (Posn, Direction) -> String
 makeLabel ((r, c), d) = show d ++ "_" ++ show r ++ "_" ++ show c
@@ -63,8 +60,14 @@ vardecl v = let
 
 -- | For variable foo: "collect(var_foo);"
 collect :: String -> CStat
-collect v = let
-  in CExpr (Just $ CCall (var "collect") [var $ varName v] unn) unn
+collect v = CExpr (Just $ CCall (var "collect") [var $ varName v] unn) unn
+
+-- | For variable foo: "var_foo = pop();"
+popInto :: String -> CStat
+popInto v = let
+  lvalue = var $ varName v
+  rvalue = CCall (var "pop") [] unn
+  in CExpr (Just $ CAssign CAssignOp lvalue rvalue unn) unn
 
 -- | Attaches a label to a list of statements. If the list is empty, creates
 -- a null statement to attach the label to.
@@ -106,8 +109,7 @@ command c = case c of
   Push v -> [CExpr (Just $ CCall (var "push") [var $ varName v] unn) unn]
   -- Popping from var foo becomes:
   -- "collect(var_foo); var_foo = pop();"
-  -- Then, at the end of the function: "collect(var_foo)"
-  Pop _ -> []
+  Pop v -> [collect v, popInto v]
   -- A call to function foo becomes: "fun_foo();"
   Call f -> [call $ funName f]
   Val v -> case v of
@@ -118,5 +120,6 @@ command c = case c of
 val :: Val -> CStat
 val = undefined
 
+-- | For function foo: "foo();"
 call :: String -> CStat
 call str = CExpr (Just $ CCall (var str) [] unn) unn
