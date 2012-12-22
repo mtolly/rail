@@ -7,16 +7,20 @@ Maintainer:         tolly@wisc.edu
 Build-Type:         Simple
 Cabal-version:      >= 1.8
 Category:           Data
+Data-Dir:           data
+Data-Files:         header.c
 
 Library
-  Build-Depends:    base == 4.*, containers, transformers, array, split, void
+  Build-Depends:    base == 4.*, containers, transformers, array, split, void,
+                    language-c
   Exposed-modules:  Data.ControlFlow
                     Language.Rail.Base
                     Language.Rail.Run
+                    Language.Rail.C
+  Other-modules:    Paths_rail
   hs-source-dirs:   src
   ghc-options:      -Wall
 
 Executable hrail
   Main-Is:          Main.hs
   Build-Depends:    base == 4.*, rail
-
