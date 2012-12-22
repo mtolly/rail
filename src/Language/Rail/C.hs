@@ -21,8 +21,13 @@ idt = internalIdent
 unn :: NodeInfo
 unn = undefNode
 
+-- | The expression of a variable's value.
 var :: String -> CExpr
 var str = CVar (idt str) unn
+
+-- | For function foo: "foo();"
+call :: String -> CStat
+call str = CExpr (Just $ CCall (var str) [] unn) unn
 
 -- Name manglers
 
@@ -57,17 +62,6 @@ vardecl v = let
   cdecl = CDeclr (Just $ idt $ varName v) [CPtrDeclr [] unn] Nothing [] unn
   cinit = CInitExpr (CConst $ CIntConst (cInteger 0) unn) unn
   in CDecl [CTypeSpec structType] [(Just cdecl, Just cinit, Nothing)] unn
-
--- | For variable foo: "collect(var_foo);"
-collect :: String -> CStat
-collect v = CExpr (Just $ CCall (var "collect") [var $ varName v] unn) unn
-
--- | For variable foo: "var_foo = pop();"
-popInto :: String -> CStat
-popInto v = let
-  lvalue = var $ varName v
-  rvalue = CCall (var "pop") [] unn
-  in CExpr (Just $ CAssign CAssignOp lvalue rvalue unn) unn
 
 -- | Attaches a label to a list of statements. If the list is empty, creates
 -- a null statement to attach the label to.
@@ -112,14 +106,29 @@ command c = case c of
   Pop v -> [collect v, popInto v]
   -- A call to function foo becomes: "fun_foo();"
   Call f -> [call $ funName f]
-  Val v -> case v of
-    _ -> undefined
+  Val v -> [val v]
   -- A use of builtin add becomes: "builtin_add();"
   _ -> [call $ "builtin_" ++ map toLower (show c)]
 
-val :: Val -> CStat
-val = undefined
+-- | For variable foo: "collect(var_foo);"
+collect :: String -> CStat
+collect v = CExpr (Just $ CCall (var "collect") [var $ varName v] unn) unn
 
--- | For function foo: "foo();"
-call :: String -> CStat
-call str = CExpr (Just $ CCall (var str) [] unn) unn
+-- | For variable foo: "var_foo = pop();"
+popInto :: String -> CStat
+popInto v = let
+  lvalue = var $ varName v
+  rvalue = CCall (var "pop") [] unn
+  in CExpr (Just $ CAssign CAssignOp lvalue rvalue unn) unn
+
+-- | An expression that generates @struct value *foo@.
+generate :: Val -> CExpr
+generate v = case v of
+  Str s -> CCall (var "new_str_copy") [CConst $ CStrConst (cString s) unn] unn
+  Nil -> CCall (var "new_nil") [] unn
+  Pair x y -> let pair = CCall (var "make_pair") [generate x, generate y] unn
+    in CCall (var "new_pair") [pair] unn
+
+-- | Push a newly generated value.
+val :: Val -> CStat
+val v = CExpr (Just $ CCall (var "push") [generate v] unn) unn
