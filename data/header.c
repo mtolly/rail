@@ -1,3 +1,7 @@
+/***
+ * Rail-to-C compiler runtime
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -32,6 +36,10 @@ int stack_size = 0;
 int condition = 0;
 
 void push(struct value *v) {
+  if (v == NULL) {
+    printf("push: tried to push null pointer\n");
+    exit(0);
+  }
   struct stack_node *node = malloc(sizeof(struct stack_node));
   node->value = v;
   (v->references)++;
@@ -128,7 +136,7 @@ struct pair *get_pair(struct value *v) {
 // Checks reference count and possibly frees the value. If the value is a pair,
 // decrements the car and cdr's reference counts and checks those as well.
 void collect(struct value *v) {
-  if (v->references == 0) {
+  if (v != NULL && v->references == 0) {
     union uvalue *uv = v->uvalue;
     if (v->type == STR) {
       free(uv->str);
@@ -162,7 +170,7 @@ struct value *new_str_copy(char *str) {
   return new_str(buf);
 }
 
-/**********
+/***
  * BUILTINS
  */
 
@@ -247,8 +255,23 @@ void builtin_sub() {
 }
 
 void builtin_cut() {
-  printf("TODO: cut\n");
-  exit(0);
+  int len0 = pop_int();
+  struct value *v = pop();
+  char *s = get_str(v);
+  int len = strlen(s);
+  int len1 = len - len0;
+  if (len0 < 0 || len1 < 0) {
+    printf("cut: index out of bounds\n");
+    exit(0);
+  }
+  char *a = malloc(len0 * sizeof(char));
+  char *b = malloc(len1 * sizeof(char));
+  strncpy(a, s, len0);
+  a[len0] = '\0';
+  strncpy(b, s + len0, len1);
+  b[len1] = '\0';
+  push(new_str(a));
+  push(new_str(b));
 }
 
 void builtin_append() {
