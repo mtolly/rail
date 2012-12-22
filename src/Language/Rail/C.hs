@@ -8,8 +8,6 @@ import Data.Char (toLower, isAscii, isAlphaNum)
 import Language.C.Syntax
 import Language.C.Data.Node
 import Language.C.Data.Ident
-import qualified Data.Map as Map
-import qualified Data.Set as Set
 
 -- | Read the C Rail runtime.
 header :: IO String
@@ -48,31 +46,33 @@ funName f = "fun_" ++ mangle f
 builtinName :: String -> String
 builtinName b = "builtin_" ++ mangle b
 
+-- | Turns ((4, 7), NE) into "NE_4_7".
+makeLabel :: (Posn, Direction) -> String
+makeLabel ((r, c), d) = show d ++ "_" ++ show r ++ "_" ++ show c
+
 -- Rail to C compiler
 
-variables :: Function -> Set.Set String
-variables = undefined
+-- | For variable foo, make the declaration "struct value *var_foo = NULL;"
+vardecl :: String -> CDecl
+vardecl v = let
+  structType =
+    CSUType (CStruct CStructTag (Just $ idt "value") Nothing [] unn) unn
+  cdecl = CDeclr (Just $ idt $ varName v) [CPtrDeclr [] unn] Nothing [] unn
+  cinit = CInitExpr (CConst $ CIntConst (cInteger 0) unn) unn
+  in CDecl [CTypeSpec structType] [(Just cdecl, Just cinit, Nothing)] unn
 
-vardecl :: [String] -> CDecl
-vardecl vs = let
-  f v = (Just undefined, Nothing, Nothing)
-  structValue =
-    CStruct CStructTag (Just $ idt "value") Nothing [] unn
-  in CDecl [CTypeSpec $ CSUType structValue unn] (map f vs) unn
+-- | For variable foo: "collect(var_foo);"
+collect :: String -> CStat
+collect v = let
+  in CExpr (Just $ CCall (var "collect") [var $ varName v] unn) unn
 
-function :: Function -> [CStat]
-function f = block (systemStart f) ++ concatMap g (Map.toList $ systemPaths f)
-  where g (pd, go) = label (makeLabel pd) $ block go
-
+-- | Attaches a label to a list of statements. If the list is empty, creates
+-- a null statement to attach the label to.
 label :: String -> [CStat] -> [CStat]
 label str stmts = case stmts of
   [] -> [addLabel $ CExpr Nothing unn]
   (x:xs) -> addLabel x : xs
   where addLabel stmt = CLabel (idt str) stmt [] unn
-
--- | Turns ((4, 7), NE) into "NE_4_7".
-makeLabel :: (Posn, Direction) -> String
-makeLabel ((r, c), d) = show d ++ "_" ++ show r ++ "_" ++ show c
 
 -- | Prints a string with @printf()@, then exits with status 0.
 exitWith :: String -> [CStat]
@@ -104,7 +104,9 @@ command :: Command -> [CStat]
 command c = case c of
   -- Pushing from var foo becomes: "push(var_foo);"
   Push v -> [CExpr (Just $ CCall (var "push") [var $ varName v] unn) unn]
-  -- Popping from var foo becomes: TODO
+  -- Popping from var foo becomes:
+  -- "collect(var_foo); var_foo = pop();"
+  -- Then, at the end of the function: "collect(var_foo)"
   Pop _ -> []
   -- A call to function foo becomes: "fun_foo();"
   Call f -> [call $ funName f]
