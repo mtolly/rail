@@ -125,7 +125,7 @@ runCommand c = case c of
     Pair _ _ -> "list"
     -- TODO: lambda
   Cons -> liftA2 (flip Pair) pop pop >>= push
-  Uncons -> popPair >>= \(x, y) -> push y >> push x
+  Uncons -> popPair >>= \(x, y) -> push x >> push y
   Size -> popStr >>= pushInt . fromIntegral . length
   Append -> liftA2 (flip (++)) popStr popStr >>= push . Str
   Cut -> do

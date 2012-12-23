@@ -334,7 +334,7 @@ void builtin_cons() {
   struct value *x, *y;
   x = pop();
   y = pop();
-  struct value *v = new_pair(make_pair(x, y));
+  struct value *v = new_pair(make_pair(y, x));
   // No need to check for garbage collection
   push(v);
 }
@@ -342,8 +342,8 @@ void builtin_cons() {
 void builtin_uncons() {
   struct value *v = pop();
   struct pair *p = get_pair(v);
-  push(p->cdr);
   push(p->car);
+  push(p->cdr);
   collect(v);
 }
 
