@@ -43,6 +43,12 @@ int condition = 0;
  * Pushing and creating values
  */
 
+void add_reference(struct value *v) {
+  if (v != NULL) {
+    (v->references)++;
+  }
+}
+
 void push(struct value *v) {
   if (v == NULL) {
     printf("push: tried to push null pointer\n");
@@ -50,7 +56,7 @@ void push(struct value *v) {
   }
   struct stack_node *node = malloc(sizeof(struct stack_node));
   node->value = v;
-  (v->references)++;
+  add_reference(v);
   node->next = stack;
   stack = node;
   stack_size++;
@@ -86,8 +92,8 @@ struct pair *make_pair(struct value *car, struct value *cdr) {
   struct pair *p = malloc(sizeof(struct pair));
   p->car = car;
   p->cdr = cdr;
-  (car->references)++;
-  (cdr->references)++;
+  add_reference(car);
+  add_reference(cdr);
   return p;
 }
 
@@ -113,6 +119,12 @@ struct value *new_nil() {
  * Popping and deconstructing values
  */
 
+void remove_reference(struct value *v) {
+  if (v != NULL) {
+    (v->references)--;
+  }
+}
+
 // If the returned value's references is 0, caller is responsible for freeing.
 struct value *pop() {
   if (stack == NULL) {
@@ -123,7 +135,7 @@ struct value *pop() {
   stack = node->next;
   struct value *v = node->value;
   free(node);
-  (v->references)--;
+  remove_reference(v);
   return v;
 }
 
@@ -163,9 +175,9 @@ void collect(struct value *v) {
     }
     else if (v->type == PAIR) {
       struct pair *pr = uv->pair;
-      (pr->car->references)--;
+      remove_reference(pr->car);
       collect(pr->car);
-      (pr->cdr->references)--;
+      remove_reference(pr->cdr);
       collect(pr->cdr);
       free(pr);
     }
