@@ -8,6 +8,8 @@ import Data.Char (toLower, isAscii, isAlphaNum)
 import Language.C.Syntax
 import Language.C.Data.Node
 import Language.C.Data.Ident
+import qualified Data.Map as Map
+import Data.List (nub)
 
 -- | Read the C Rail runtime.
 header :: IO String
@@ -54,6 +56,40 @@ makeLabel ((r, c), d) = show d ++ "_" ++ show r ++ "_" ++ show c
 
 -- Rail to C compiler
 
+makeProgram :: [(String, Function)] -> [CExtDecl]
+makeProgram pairs = let
+  forwards = map (makeForward . fst) pairs
+  voidType = CTypeSpec $ CVoidType unn
+  makeForward name = CDecl [voidType] [(Just $ makeDeclr name, Nothing, Nothing)] unn
+  makeDeclr name = CDeclr (Just $ idt $ funName name)
+    [CFunDeclr (Left []) [] unn] Nothing [] unn
+  fundefs = map (uncurry makeFunction) pairs
+  in map CDeclExt forwards ++ map CFDefExt fundefs
+
+-- | Translates a Rail function to a C function.
+makeFunction :: String -> Function -> CFunDef
+makeFunction fname sys = let
+  vars = variables sys
+  voidType = CTypeSpec $ CVoidType unn
+  fname' = idt $ funName fname
+  decl = CDeclr (Just fname') [CFunDeclr (Left []) [] unn] Nothing [] unn
+  locals = map vardecl vars
+  makeBlock sts = CCompound [] (map CBlockStmt sts) unn
+  body = block (systemStart sys) ++
+    concatMap (\(pd, path) -> label (makeLabel pd) (block path))
+      (Map.toList $ systemPaths sys)
+  cleanup = concatMap (\v -> [removeRef v, collect v]) vars
+  in CFunDef [voidType] decl locals (makeBlock $ body ++ cleanup) unn
+
+variables :: Function -> [String]
+variables (System st ps) = nub $ concatMap pathVars (st : Map.elems ps) where
+  pathVars :: Go (Posn, Direction) (Maybe String) Command -> [String]
+  pathVars g = case g of
+    Push v :>> x -> v : pathVars x
+    Pop v :>> x -> v : pathVars x
+    x :|| y -> pathVars x ++ pathVars y
+    _ -> []
+
 -- | For variable foo, make the declaration "struct value *var_foo = NULL;"
 vardecl :: String -> CDecl
 vardecl v = let
@@ -99,27 +135,25 @@ block g = case g of
 -- | Produces statements to execute a single command.
 command :: Command -> [CStat]
 command c = case c of
-  -- Pushing from var foo becomes: "push(var_foo);"
+  -- Pushing from var foo: "push(var_foo);"
   Push v -> [CExpr (Just $ CCall (var "push") [var $ varName v] unn) unn]
-  -- Popping from var foo becomes:
-  -- "collect(var_foo); var_foo = pop();"
-  Pop v -> [collect v, popInto v]
-  -- A call to function foo becomes: "fun_foo();"
+  -- Popping from var foo: "pop_to_var(&var_foo);"
+  Pop v -> [CExpr (Just $ CCall (var "pop_to_var")
+    [CUnary CAdrOp (var $ varName v) unn] unn) unn]
+  -- A call to function foo: "fun_foo();"
   Call f -> [call $ funName f]
   Val v -> [val v]
-  -- A use of builtin add becomes: "builtin_add();"
+  -- A use of builtin add: "builtin_add();"
   _ -> [call $ "builtin_" ++ map toLower (show c)]
 
 -- | For variable foo: "collect(var_foo);"
 collect :: String -> CStat
 collect v = CExpr (Just $ CCall (var "collect") [var $ varName v] unn) unn
 
--- | For variable foo: "var_foo = pop();"
-popInto :: String -> CStat
-popInto v = let
-  lvalue = var $ varName v
-  rvalue = CCall (var "pop") [] unn
-  in CExpr (Just $ CAssign CAssignOp lvalue rvalue unn) unn
+-- | For variable foo: "remove_reference(var_foo);"
+removeRef :: String -> CStat
+removeRef v =
+  CExpr (Just $ CCall (var "remove_reference") [var $ varName v] unn) unn
 
 -- | An expression that generates @struct value *foo@.
 generate :: Val -> CExpr

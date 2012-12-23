@@ -194,6 +194,15 @@ int pop_int() {
   return i;
 }
 
+// Removes the previous contents of a local variable (garbage collecting if
+// necessary) and pops from the stack into it.
+void pop_to_var(struct value **var) {
+  remove_reference(*var);
+  collect(*var);
+  *var = pop();
+  add_reference(*var);
+}
+
 /***
  * Built-in operations
  */
