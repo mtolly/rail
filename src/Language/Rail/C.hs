@@ -45,7 +45,7 @@ makeCFile :: [(String, Function)] -> IO String
 makeCFile pairs = do
   h <- header
   let funs = render $ makeProgram pairs
-  return $ h ++ "\n" ++ funs ++ footer
+  return $ h ++ funs ++ footer
 
 makeProgram :: [(String, Function)] -> Doc
 makeProgram pairs = let

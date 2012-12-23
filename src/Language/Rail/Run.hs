@@ -38,7 +38,7 @@ makeSub = flow . makeSystem
 type Rail = StateT Memory (ErrorT String IO)
 
 runRail :: Rail () -> Memory -> IO ()
-runRail r mem = runErrorT (evalStateT r mem) >>= either putStrLn return
+runRail r mem = runErrorT (evalStateT r mem) >>= either putStr return
 
 err :: String -> Rail a
 err = lift . throwError

@@ -305,6 +305,7 @@ void builtin_cut() {
   b[len1] = '\0';
   push(new_str(a));
   push(new_str(b));
+  collect(v);
 }
 
 void builtin_append() {
@@ -335,7 +336,7 @@ void builtin_cons() {
   x = pop();
   y = pop();
   struct value *v = new_pair(make_pair(y, x));
-  // No need to check for garbage collection
+  // No need to check for garbage collection, off the stack and into the pair
   push(v);
 }
 
@@ -391,3 +392,8 @@ void builtin_setbranch() {
     exit(0);
   }
 }
+
+/***
+ * RAIL PROGRAM BEGINS HERE
+ */
+
