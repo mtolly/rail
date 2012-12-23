@@ -109,9 +109,9 @@ block g = case g of
   -- Branch: if statement
   x :|| y -> vcat
     [ text "if (condition) {"
-    , nest 2 $ block x
-    , text "} else {"
     , nest 2 $ block y
+    , text "} else {"
+    , nest 2 $ block x
     , text "}"]
   -- Continue: goto a label
   Continue pd -> text $ "goto " ++ makeLabel pd ++ ";"
