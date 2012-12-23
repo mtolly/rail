@@ -12,7 +12,7 @@ Data-Files:         header.c
 
 Library
   Build-Depends:    base == 4.*, containers, transformers, array, split, void,
-                    language-c
+                    pretty
   Exposed-modules:  Data.ControlFlow
                     Language.Rail.Base
                     Language.Rail.Run
@@ -23,4 +23,5 @@ Library
 
 Executable hrail
   Main-Is:          Main.hs
-  Build-Depends:    base == 4.*, rail, language-c
+  Build-Depends:    base == 4.*, rail
+  ghc-options:      -Wall

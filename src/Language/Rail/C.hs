@@ -5,35 +5,16 @@ import Data.ControlFlow
 import Language.Rail.Base
 import Paths_rail (getDataFileName)
 import Data.Char (toLower, isAscii, isAlphaNum)
-import Language.C.Syntax
-import Language.C.Pretty
-import Language.C.Data.Node
-import Language.C.Data.Ident
 import qualified Data.Map as Map
 import Data.List (nub)
+import Text.PrettyPrint.HughesPJ (Doc, text, hcat, vcat, render, nest, ($$))
 
 -- | Read the C Rail runtime.
 header :: IO String
 header = getDataFileName "header.c" >>= readFile
 
 footer :: String
-footer = "\n\nint main() { fun_main(); return 0; }"
-
--- Convenience functions for Language.C.Syntax.AST
-
-idt :: String -> Ident
-idt = internalIdent
-
-unn :: NodeInfo
-unn = undefNode
-
--- | The expression of a variable's value.
-var :: String -> CExpr
-var str = CVar (idt str) unn
-
--- | For function foo: "foo();"
-call :: String -> CStat
-call str = CExpr (Just $ CCall (var str) [] unn) unn
+footer = "\n\nint main() { fun_main(); return 0; }\n"
 
 -- Name manglers
 
@@ -63,34 +44,36 @@ makeLabel ((r, c), d) = show d ++ "_" ++ show r ++ "_" ++ show c
 makeCFile :: [(String, Function)] -> IO String
 makeCFile pairs = do
   h <- header
-  let funs = show $ pretty $ CTranslUnit (makeProgram pairs) unn
+  let funs = render $ makeProgram pairs
   return $ h ++ "\n" ++ funs ++ footer
 
-makeProgram :: [(String, Function)] -> [CExtDecl]
+makeProgram :: [(String, Function)] -> Doc
 makeProgram pairs = let
-  forwards = map (makeForward . fst) pairs
-  voidType = CTypeSpec $ CVoidType unn
-  makeForward name = CDecl [voidType] [(Just $ makeDeclr name, Nothing, Nothing)] unn
-  makeDeclr name = CDeclr (Just $ idt $ funName name)
-    [CFunDeclr (Left []) [] unn] Nothing [] unn
-  fundefs = map (uncurry makeFunction) pairs
-  in map CDeclExt forwards ++ map CFDefExt fundefs
+  makeForward fname = text $ "void " ++ funName fname ++ "();"
+  in vcat
+    [ vcat $ map (makeForward . fst) pairs
+    , text ""
+    , vcat $ map (uncurry makeFunction) pairs ]
 
 -- | Translates a Rail function to a C function.
-makeFunction :: String -> Function -> CFunDef
+makeFunction :: String -> Function -> Doc
 makeFunction fname sys = let
   vars = variables sys
-  voidType = CTypeSpec $ CVoidType unn
-  fname' = idt $ funName fname
-  decl = CDeclr (Just fname') [CFunDeclr (Left []) [] unn] Nothing [] unn
-  funBlock = CCompound [] (locals ++ body ++ cleanup) unn
-  locals = map (CBlockDecl . vardecl) vars
-  body = map CBlockStmt $ block (systemStart sys) ++
-    concatMap (\(pd, path) -> label (makeLabel pd) (block path))
-      (Map.toList $ systemPaths sys)
-  cleanup = map CBlockStmt $ concatMap (\v -> [removeRef v, collect v]) vars
-  in CFunDef [voidType] decl [] funBlock unn
+  startCode = block $ systemStart sys
+  pathsCode = map (\(pd, path) -> label (makeLabel pd) (block path)) $
+    Map.toList $ systemPaths sys
+  cleanup = map removeRef vars ++ map collect vars
+  in vcat
+    [ text $ "void " ++ funName fname ++ "() {" -- function declaration
+    , nest 2 $ vcat
+      [ vcat $ map vardecl vars -- local variable declarations
+      , startCode -- entry point code
+      , vcat pathsCode -- each labeled path's code
+      , vcat cleanup -- detach and garbage collect local variables
+      ]
+    , text "}" ]
 
+-- | Find all the local variables used in a function.
 variables :: Function -> [String]
 variables (System st ps) = nub $ concatMap pathVars (st : Map.elems ps) where
   pathVars :: Go (Posn, Direction) (Maybe String) Command -> [String]
@@ -102,78 +85,62 @@ variables (System st ps) = nub $ concatMap pathVars (st : Map.elems ps) where
     _            -> []
 
 -- | For variable foo, make the declaration "struct value *var_foo = NULL;"
-vardecl :: String -> CDecl
-vardecl v = let
-  structType =
-    CSUType (CStruct CStructTag (Just $ idt "value") Nothing [] unn) unn
-  cdecl = CDeclr (Just $ idt $ varName v) [CPtrDeclr [] unn] Nothing [] unn
-  cinit = CInitExpr (CConst $ CIntConst (cInteger 0) unn) unn
-  in CDecl [CTypeSpec structType] [(Just cdecl, Just cinit, Nothing)] unn
+vardecl :: String -> Doc
+vardecl v = text $ "struct value *" ++ varName v ++ " = NULL;"
 
 -- | Attaches a label to a list of statements. If the list is empty, creates
 -- a null statement to attach the label to.
-label :: String -> [CStat] -> [CStat]
-label str stmts = case stmts of
-  [] -> [addLabel $ CExpr Nothing unn]
-  (x:xs) -> addLabel x : xs
-  where addLabel stmt = CLabel (idt str) stmt [] unn
+label :: String -> Doc -> Doc
+label str stmts = vcat
+  [ nest (-2) $ text $ str ++ ":"
+  , stmts ]
 
 -- | Prints a string with @printf()@, then exits with status 0.
-exitWith :: String -> [CStat]
-exitWith str =
-  [ CExpr (Just $ CCall (var "printf") [msg] unn) unn
-  , CExpr (Just $ CCall (var "exit") [zero] unn) unn
-  ] where zero = CConst $ CIntConst (cInteger 0) unn
-          msg = CConst $ CStrConst (cString str) unn
+exitWith :: String -> Doc
+exitWith s = vcat
+  [ text $ "printf(" ++ show s ++ ");" -- TODO: fix escapes
+  , text "exit(0);" ]
 
 -- | Generates statements for a single basic block.
-block :: Go (Posn, Direction) (Maybe String) Command -> [CStat]
+block :: Go (Posn, Direction) (Maybe String) Command -> Doc
 block g = case g of
   -- Node: call command function
-  v :>> x -> command v ++ block x
+  v :>> x -> command v $$ block x
   -- Branch: if statement
-  x :|| y -> let
-    ifT = CCompound [] (map CBlockStmt $ block y) unn
-    ifF = CCompound [] (map CBlockStmt $ block x) unn
-    in [CIf (var "condition") ifT (Just ifF) unn]
+  x :|| y -> vcat
+    [ text "if (condition) {"
+    , nest 2 $ block x
+    , text "} else {"
+    , nest 2 $ block y
+    , text "}"]
   -- Continue: goto a label
-  Continue c -> [CGoto (idt $ makeLabel c) unn]
+  Continue pd -> text $ "goto " ++ makeLabel pd ++ ";"
   -- Successful end: return from function
-  End Nothing -> [CReturn Nothing unn]
+  End Nothing -> text "return;"
   -- Crash end: print message and exit()
   End (Just s) -> exitWith s
 
 -- | Produces statements to execute a single command.
-command :: Command -> [CStat]
+command :: Command -> Doc
 command c = case c of
-  -- Pushing from var foo: "push(var_foo);"
-  Push v -> [CExpr (Just $ CCall (var "push") [var $ varName v] unn) unn]
-  -- Popping from var foo: "pop_to_var(&var_foo);"
-  Pop v -> [CExpr (Just $ CCall (var "pop_to_var")
-    [CUnary CAdrOp (var $ varName v) unn] unn) unn]
-  -- A call to function foo: "fun_foo();"
-  Call f -> [call $ funName f]
-  Val v -> [val v]
-  -- A use of builtin add: "builtin_add();"
-  _ -> [call $ "builtin_" ++ map toLower (show c)]
-
--- | For variable foo: "collect(var_foo);"
-collect :: String -> CStat
-collect v = CExpr (Just $ CCall (var "collect") [var $ varName v] unn) unn
+  Push v -> text $ "push(" ++ varName v ++ ");"
+  Pop v -> text $ "pop_to_var(&" ++ varName v ++ ");"
+  Call f -> text $ funName f ++ "();"
+  Val v -> hcat [text "push(", generate v, text ");"]
+  _ -> text $ "builtin_" ++ map toLower (show c) ++ "();"
 
 -- | For variable foo: "remove_reference(var_foo);"
-removeRef :: String -> CStat
-removeRef v =
-  CExpr (Just $ CCall (var "remove_reference") [var $ varName v] unn) unn
+removeRef :: String -> Doc
+removeRef v = text $ "remove_reference(" ++ varName v ++ ");"
+
+-- | For variable foo: "collect(var_foo);"
+collect :: String -> Doc
+collect v = text $ "collect(" ++ varName v ++ ");"
 
 -- | An expression that generates @struct value *foo@.
-generate :: Val -> CExpr
+generate :: Val -> Doc
 generate v = case v of
-  Str s -> CCall (var "new_str_copy") [CConst $ CStrConst (cString s) unn] unn
-  Nil -> CCall (var "new_nil") [] unn
-  Pair x y -> let pair = CCall (var "make_pair") [generate x, generate y] unn
-    in CCall (var "new_pair") [pair] unn
-
--- | Push a newly generated value.
-val :: Val -> CStat
-val v = CExpr (Just $ CCall (var "push") [generate v] unn) unn
+  Str s -> text $ "new_str_copy(" ++ show s ++ ")" -- TODO: fix escapes
+  Nil -> text "new_nil()"
+  Pair x y ->
+    hcat [text "make_pair(", generate x, text ", ", generate y, text ")"]

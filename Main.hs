@@ -5,9 +5,8 @@ import System.IO (hPutStrLn, stderr)
 import Language.Rail.Base
 import Language.Rail.Run
 import Language.Rail.C
-import Language.C.Syntax.AST
-import Language.C.Pretty
 
+main :: IO ()
 main = getArgs >>= \argv -> case argv of
   [fin] -> readFile fin >>= runMemory . compile
   [fin, fout] -> do
