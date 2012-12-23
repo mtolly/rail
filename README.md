@@ -7,7 +7,7 @@ For information on the Rail language, see [its page on Esolang](http://esolangs.
 
 This includes a library and an executable, performing two functions: a Rail
 program can be directly run by a Haskell interpreter, or it can be translated
-to C code, which can then be compiled by any standard C compiler.
+to C code, which can then be compiled by any standard C99 compiler.
 
 Usage
 =====

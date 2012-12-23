@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 
 #define STR 0
 #define NIL 1
@@ -84,7 +85,7 @@ struct value *new_str_copy(char *str) {
 
 struct value *new_int(int i) {
   char *s = malloc(20 * sizeof(char));
-  sprintf(s, "%i", i);
+  snprintf(s, 20, "%i", i);
   return new_str(s);
 }
 
@@ -215,11 +216,11 @@ void builtin_boom() {
 }
 
 void builtin_eof() {
-  push(new_int(feof(stdin) ? 1 : 0));
+  push(new_int(feof(stdin) != 0 ? 1 : 0));
 }
 
 void builtin_input() {
-  if (feof(stdin)) {
+  if (feof(stdin) != 0) {
     printf("input: end of file\n");
     exit(0);
   }
@@ -354,9 +355,9 @@ void builtin_greater() {
   push(new_int(a > b));
 }
 
-int equal(struct value *x, struct value *y) {
+bool equal(struct value *x, struct value *y) {
   if (x->type != y->type) {
-    return 0;
+    return false;
   }
   if (x->type == STR) {
     return strcmp(x->uvalue->str, y->uvalue->str) == 0;
@@ -367,10 +368,10 @@ int equal(struct value *x, struct value *y) {
     return equal(xp->car, yp->car) && equal(xp->cdr, yp->cdr);
   }
   if (x->type == NIL) {
-    return 1;
+    return true;
   }
   // TODO: lambda
-  return 0;
+  return false;
 }
 
 void builtin_equal() {
