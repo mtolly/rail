@@ -6,7 +6,7 @@ import Language.Rail.Base
 import Paths_rail (getDataFileName)
 import Data.Char (toLower, isAscii, isAlphaNum)
 import qualified Data.Map as Map
-import Data.List (nub)
+import Data.List (nub, intersperse)
 import Text.PrettyPrint.HughesPJ (Doc, text, hcat, vcat, render, nest, ($$))
 
 -- | Read the C Rail runtime.
@@ -53,7 +53,7 @@ makeProgram pairs = let
   in vcat
     [ vcat $ map (makeForward . fst) pairs
     , text ""
-    , vcat $ map (uncurry makeFunction) pairs ]
+    , vcat $ intersperse (text "") $ map (uncurry makeFunction) pairs ]
 
 -- | Translates a Rail function to a C function.
 makeFunction :: String -> Function -> Doc
@@ -69,7 +69,7 @@ makeFunction fname sys = let
       [ vcat $ map vardecl vars -- local variable declarations
       , startCode -- entry point code
       , vcat pathsCode -- each labeled path's code
-      , vcat cleanup -- detach and garbage collect local variables
+      , label "done" $ vcat cleanup $$ text "return;"-- detach/collect locals
       ]
     , text "}" ]
 
@@ -116,7 +116,7 @@ block g = case g of
   -- Continue: goto a label
   Continue pd -> text $ "goto " ++ makeLabel pd ++ ";"
   -- Successful end: return from function
-  End Nothing -> text "return;"
+  End Nothing -> text "goto done;"
   -- Crash end: print message and exit()
   End (Just s) -> exitWith s
 
