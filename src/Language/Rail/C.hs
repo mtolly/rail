@@ -6,6 +6,7 @@ import Language.Rail.Base
 import Paths_rail (getDataFileName)
 import Data.Char (toLower, isAscii, isAlphaNum)
 import Language.C.Syntax
+import Language.C.Pretty
 import Language.C.Data.Node
 import Language.C.Data.Ident
 import qualified Data.Map as Map
@@ -14,6 +15,9 @@ import Data.List (nub)
 -- | Read the C Rail runtime.
 header :: IO String
 header = getDataFileName "header.c" >>= readFile
+
+footer :: String
+footer = "\n\nint main() { fun_main(); return 0; }"
 
 -- Convenience functions for Language.C.Syntax.AST
 
@@ -56,6 +60,12 @@ makeLabel ((r, c), d) = show d ++ "_" ++ show r ++ "_" ++ show c
 
 -- Rail to C compiler
 
+makeCFile :: [(String, Function)] -> IO String
+makeCFile pairs = do
+  h <- header
+  let funs = show $ pretty $ CTranslUnit (makeProgram pairs) unn
+  return $ h ++ "\n" ++ funs ++ footer
+
 makeProgram :: [(String, Function)] -> [CExtDecl]
 makeProgram pairs = let
   forwards = map (makeForward . fst) pairs
@@ -73,22 +83,23 @@ makeFunction fname sys = let
   voidType = CTypeSpec $ CVoidType unn
   fname' = idt $ funName fname
   decl = CDeclr (Just fname') [CFunDeclr (Left []) [] unn] Nothing [] unn
-  locals = map vardecl vars
-  makeBlock sts = CCompound [] (map CBlockStmt sts) unn
-  body = block (systemStart sys) ++
+  funBlock = CCompound [] (locals ++ body ++ cleanup) unn
+  locals = map (CBlockDecl . vardecl) vars
+  body = map CBlockStmt $ block (systemStart sys) ++
     concatMap (\(pd, path) -> label (makeLabel pd) (block path))
       (Map.toList $ systemPaths sys)
-  cleanup = concatMap (\v -> [removeRef v, collect v]) vars
-  in CFunDef [voidType] decl locals (makeBlock $ body ++ cleanup) unn
+  cleanup = map CBlockStmt $ concatMap (\v -> [removeRef v, collect v]) vars
+  in CFunDef [voidType] decl [] funBlock unn
 
 variables :: Function -> [String]
 variables (System st ps) = nub $ concatMap pathVars (st : Map.elems ps) where
   pathVars :: Go (Posn, Direction) (Maybe String) Command -> [String]
   pathVars g = case g of
     Push v :>> x -> v : pathVars x
-    Pop v :>> x -> v : pathVars x
-    x :|| y -> pathVars x ++ pathVars y
-    _ -> []
+    Pop  v :>> x -> v : pathVars x
+    _      :>> x -> pathVars x
+    x      :|| y -> pathVars x ++ pathVars y
+    _            -> []
 
 -- | For variable foo, make the declaration "struct value *var_foo = NULL;"
 vardecl :: String -> CDecl

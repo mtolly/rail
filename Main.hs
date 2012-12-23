@@ -12,8 +12,6 @@ main = getArgs >>= \argv -> case argv of
   [fin] -> readFile fin >>= runMemory . compile
   [fin, fout] -> do
     s <- readFile fin
-    let tunit = CTranslUnit (makeProgram $ getFunctions s) unn
-    head <- header
-    let output = head ++ show (pretty $ tunit)
-    writeFile fout output
+    sout <- makeCFile $ getFunctions s
+    writeFile fout sout
   _ -> hPutStrLn stderr "usage: hrail <file>"
