@@ -1,7 +1,7 @@
 rail
 ====
 
-A Rail interpreter and compiler in Haskell, by [Michael Tolly](mailto:lordrm@gmail.com).
+A Rail interpreter and compiler in Haskell, by [Michael Tolly](mailto:miketolly@gmail.com).
 
 For information on the Rail language, see [its page on Esolang](http://esolangs.org/wiki/Rail).
 
