@@ -23,4 +23,4 @@ Library
 
 Executable hrail
   Main-Is:          Main.hs
-  Build-Depends:    base == 4.*, rail
+  Build-Depends:    base == 4.*, rail, language-c
