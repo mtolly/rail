@@ -242,7 +242,7 @@ void builtin_underflow() {
 
 void builtin_type() {
   struct value *v = pop();
-  switch (pop()->type) {
+  switch (v->type) {
     case STR:
       push(new_str_copy("string"));
       break;
