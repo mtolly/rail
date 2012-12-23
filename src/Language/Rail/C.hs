@@ -62,7 +62,7 @@ makeFunction fname sys = let
   startCode = block $ systemStart sys
   pathsCode = map (\(pd, path) -> label (makeLabel pd) (block path)) $
     Map.toList $ systemPaths sys
-  cleanup = map removeRef vars ++ map collect vars
+  cleanup = concatMap (\v -> [removeRef v, collect v]) vars
   in vcat
     [ text $ "void " ++ funName fname ++ "() {" -- function declaration
     , nest 2 $ vcat
