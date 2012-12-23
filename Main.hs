@@ -13,4 +13,6 @@ main = getArgs >>= \argv -> case argv of
     s <- readFile fin
     sout <- makeCFile $ getFunctions s
     writeFile fout sout
-  _ -> hPutStrLn stderr "usage: hrail <file>"
+  _ -> mapM_ (hPutStrLn stderr)
+    [ "usage: hrail file-in.rail            (directly interpret)"
+    , "       hrail file-in.rail file.out.c (generate C code)" ]

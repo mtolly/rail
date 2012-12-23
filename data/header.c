@@ -1,5 +1,5 @@
 /***
- * Rail-to-C compiler runtime
+ * This C program was generated from a Rail program, using the hrail compiler.
  */
 
 #include <stdio.h>
