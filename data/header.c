@@ -40,6 +40,11 @@ struct stack_node *stack = NULL;
 int stack_size = 0;
 int condition = 0;
 
+void malloc_error() {
+  printf("Couldn't allocate memory\n");
+  exit(0);
+}
+
 /***
  * Pushing and creating values
  */
@@ -56,6 +61,7 @@ void push(struct value *v) {
     exit(0);
   }
   struct stack_node *node = malloc(sizeof(struct stack_node));
+  if (node == NULL) { malloc_error(); }
   node->value = v;
   add_reference(v);
   node->next = stack;
@@ -67,8 +73,10 @@ void push(struct value *v) {
 // garbage collected, the string pointer will be freed.
 struct value *new_str(char *str) {
   union uvalue *uv = malloc(sizeof(union uvalue));
+  if (uv == NULL) { malloc_error(); }
   uv->str = str;
   struct value *v = malloc(sizeof(struct value));
+  if (v == NULL) { malloc_error(); }
   v->type = STR;
   v->uvalue = uv;
   v->references = 0;
@@ -79,18 +87,21 @@ struct value *new_str(char *str) {
 struct value *new_str_copy(char *str) {
   int len = strlen(str);
   char *buf = malloc(len + 1);
+  if (buf == NULL) { malloc_error(); }
   strncpy(buf, str, len + 1);
   return new_str(buf);
 }
 
 struct value *new_int(int i) {
   char *s = malloc(20 * sizeof(char));
+  if (s == NULL) { malloc_error(); }
   snprintf(s, 20, "%i", i);
   return new_str(s);
 }
 
 struct pair *make_pair(struct value *car, struct value *cdr) {
   struct pair *p = malloc(sizeof(struct pair));
+  if (p == NULL) { malloc_error(); }
   p->car = car;
   p->cdr = cdr;
   add_reference(car);
@@ -100,8 +111,10 @@ struct pair *make_pair(struct value *car, struct value *cdr) {
 
 struct value *new_pair(struct pair *p) {
   union uvalue *uv = malloc(sizeof(union uvalue));
+  if (uv == NULL) { malloc_error(); }
   uv->pair = p;
   struct value *v = malloc(sizeof(struct value));
+  if (v == NULL) { malloc_error(); }
   v->type = PAIR;
   v->uvalue = uv;
   v->references = 0;
@@ -110,6 +123,7 @@ struct value *new_pair(struct pair *p) {
 
 struct value *new_nil() {
   struct value *v = malloc(sizeof(struct value));
+  if (v == NULL) { malloc_error(); }
   v->type = NIL;
   v->uvalue = NULL;
   v->references = 0;
@@ -299,7 +313,9 @@ void builtin_cut() {
     exit(0);
   }
   char *a = malloc(len0 * sizeof(char));
+  if (a == NULL) { malloc_error(); }
   char *b = malloc(len1 * sizeof(char));
+  if (b == NULL) { malloc_error(); }
   strncpy(a, s, len0);
   a[len0] = '\0';
   strncpy(b, s + len0, len1);
@@ -318,6 +334,7 @@ void builtin_append() {
   int lena = strlen(a);
   int lenb = strlen(b);
   char *s = malloc((lena + lenb + 1) * sizeof(char));
+  if (s == NULL) { malloc_error(); }
   strcpy(s, a);
   strcpy(s + lena, b);
   push(new_str(s));
