@@ -9,6 +9,7 @@ import Data.Char (isDigit)
 import Data.Maybe (mapMaybe)
 import qualified Data.Map as Map
 import Data.Data (Data, Typeable)
+import Control.Monad.Trans.State
 
 -- | TODO: lambda
 data Command
@@ -257,9 +258,16 @@ type Function = System (Posn, Direction) (Maybe String) Command
 -- at (0, 0), going southeast.
 makeSystem :: Grid -> Function
 makeSystem g = let
-  pds = [ (p, d) | p <- indices g, d <- [minBound .. maxBound] ]
-  paths = Map.fromList $ zip pds $ map (action g) pds
-  in simplifyPaths $ cleanPaths $ System (Continue ((0, 0), SE)) paths
+  dlr = ((0, 0), SE)
+  -- We recursively add only the paths which are actually used in the function.
+  -- This means we don't have to call cleanPaths.
+  startFrom pd = gets (Map.lookup pd) >>= \mg -> case mg of
+    Just _ -> return ()
+    Nothing -> do
+      let act = action g pd
+      modify $ Map.insert pd act
+      mapM_ startFrom $ continues act
+  in simplifyPaths $ System (Continue dlr) $ execState (startFrom dlr) Map.empty
 
 -- | Extracts the function name from the text of a single function.
 functionName :: String -> Maybe String

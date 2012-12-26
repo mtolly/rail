@@ -96,12 +96,12 @@ systemUnroll c sys = case Map.lookup c $ systemPaths sys of
     sys { systemPaths = Map.delete c $ systemPaths sys }
 
 usedOnce :: (Ord c) => System c e a -> [c]
-usedOnce sys = unique $ concatMap continues $
+usedOnce sys = uniqueElems $ concatMap continues $
   systemStart sys : Map.elems (systemPaths sys)
 
 -- | Sorts a list, and then returns only elements that appear just once.
-unique :: (Ord a) => [a] -> [a]
-unique = go . sort where
+uniqueElems :: (Ord a) => [a] -> [a]
+uniqueElems = go . sort where
   go (x : y : xs) = if x == y
     then go $ dropWhile (== x) xs
     else x : go (y : xs)
