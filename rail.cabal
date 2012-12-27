@@ -1,11 +1,18 @@
 Name:               rail
 Version:            0.0.1
 Synopsis:           An esoteric language using train tracks for control flow.
+Description:        Rail is a stack-based programming language, created by
+                    Jonathon Duerig, where each function's control flow is
+                    laid out using a sort of ASCII art to draw tracks, along
+                    which a virtual train travels. This library and executable
+                    provide an interpreter, as well as a simple compiler to
+                    a C backend.
 License:            GPL
+License-File:       LICENSE
 Author:             Michael Tolly
 Maintainer:         tolly@wisc.edu
 Build-Type:         Simple
-Cabal-version:      >= 1.8
+Cabal-Version:      >= 1.8
 Category:           Data
 Data-Dir:           data
 Data-Files:         header.c
@@ -13,11 +20,11 @@ Data-Files:         header.c
 Library
   Build-Depends:    base == 4.*, containers, transformers, array, split, void,
                     pretty
-  Exposed-modules:  Data.ControlFlow
+  Exposed-Modules:  Data.ControlFlow
                     Language.Rail.Base
                     Language.Rail.Run
                     Language.Rail.C
-  Other-modules:    Paths_rail
+  Other-Modules:    Paths_rail
   hs-source-dirs:   src
   ghc-options:      -Wall
 
@@ -25,3 +32,7 @@ Executable hrail
   Main-Is:          Main.hs
   Build-Depends:    base == 4.*, rail
   ghc-options:      -Wall
+
+Source-Repository head
+  type:             git
+  location:         http://github.com/mtolly/rail
