@@ -28,7 +28,8 @@ union uvalue {
 struct value {
   int type;
   union uvalue *uvalue; // if value is NIL, uvalue is undefined
-  int references;
+  int references; // references can be from the stack, a pair, or a local var
+  // a references value of -1 signifies a value not to be garbage collected
 };
 
 struct stack_node {
@@ -50,7 +51,7 @@ void malloc_error() {
  */
 
 void add_reference(struct value *v) {
-  if (v != NULL) {
+  if (v != NULL && v->references != -1) {
     (v->references)++;
   }
 }
@@ -135,7 +136,7 @@ struct value *new_nil() {
  */
 
 void remove_reference(struct value *v) {
-  if (v != NULL) {
+  if (v != NULL && v->references != -1) {
     (v->references)--;
   }
 }
