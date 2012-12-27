@@ -88,8 +88,7 @@ variables (System st ps) = nub $ concatMap pathVars (st : Map.elems ps) where
 vardecl :: String -> Doc
 vardecl v = text $ "struct value *" ++ varName v ++ " = NULL;"
 
--- | Attaches a label to a list of statements. If the list is empty, creates
--- a null statement to attach the label to.
+-- | Attaches a label to a (non-empty) list of statements.
 label :: String -> Doc -> Doc
 label str stmts = vcat
   [ nest (-2) $ text $ str ++ ":"
