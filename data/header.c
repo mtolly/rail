@@ -42,7 +42,7 @@ int stack_size = 0;
 int condition = 0;
 
 void malloc_error() {
-  printf("Couldn't allocate memory\n");
+  fprintf(stderr, "Couldn't allocate memory\n");
   exit(0);
 }
 
@@ -58,7 +58,7 @@ void add_reference(struct value *v) {
 
 void push(struct value *v) {
   if (v == NULL) {
-    printf("push: tried to push null pointer\n");
+    fprintf(stderr, "push: tried to push null pointer\n");
     exit(0);
   }
   struct stack_node *node = malloc(sizeof(struct stack_node));
@@ -150,7 +150,7 @@ void remove_reference(struct value *v) {
 // If the returned value's references is 0, caller is responsible for freeing.
 struct value *pop() {
   if (stack == NULL) {
-    printf("pop: empty stack\n");
+    fprintf(stderr, "pop: empty stack\n");
     exit(0);
   }
   struct stack_node *node = stack;
@@ -163,7 +163,7 @@ struct value *pop() {
 
 char *get_str(struct value *v) {
   if (v->type != STR) {
-    printf("get_str: not a string\n");
+    fprintf(stderr, "get_str: not a string\n");
     exit(0);
   }
   return v->uvalue->str;
@@ -173,7 +173,7 @@ int get_int(struct value *v) {
   int i;
   int scanned = sscanf(get_str(v), "%i", &i);
   if (scanned != 1) {
-    printf("get_int: could not parse int\n");
+    fprintf(stderr, "get_int: could not parse int\n");
     exit(0);
   }
   return i;
@@ -181,7 +181,7 @@ int get_int(struct value *v) {
 
 struct pair *get_pair(struct value *v) {
   if (v->type != PAIR) {
-    printf("get_pair: not a pair\n");
+    fprintf(stderr, "get_pair: not a pair\n");
     exit(0);
   }
   return v->uvalue->pair;
@@ -231,7 +231,7 @@ void pop_to_var(struct value **var) {
 
 void builtin_boom() {
   char *s = get_str(pop());
-  printf(s);
+  fprintf(stderr, s);
   // Obviously no need to garbage collect
   exit(0);
 }
@@ -242,7 +242,7 @@ void builtin_eof() {
 
 void builtin_input() {
   if (feof(stdin) != 0) {
-    printf("input: end of file\n");
+    fprintf(stderr, "input: end of file\n");
     exit(0);
   }
   char s[2];
@@ -323,7 +323,7 @@ void builtin_cut() {
   int len = strlen(s);
   int len1 = len - len0;
   if (len0 < 0 || len1 < 0) {
-    printf("cut: index out of bounds\n");
+    fprintf(stderr, "cut: index out of bounds\n");
     exit(0);
   }
   char *a = malloc(len0 * sizeof(char));
@@ -420,7 +420,7 @@ void builtin_setbranch() {
     condition = i;
   }
   else {
-    printf("builtin_setbranch: not 0 or 1\n");
+    fprintf(stderr, "builtin_setbranch: not 0 or 1\n");
     exit(0);
   }
 }
