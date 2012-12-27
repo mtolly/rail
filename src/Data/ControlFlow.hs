@@ -20,9 +20,9 @@ import Data.Traversable (Traversable)
 import Data.List (sort)
 import Data.Data (Data, Typeable)
 
--- | A partial control flow graph, with nodes of type 'a'. Each leaf of the tree
--- ends in a value of type 'e', and the graph can also contain arbitrary labels
--- as continuations, of type 'c'.
+-- | A partial control flow graph, with nodes of type @a@. Each leaf of the tree
+-- ends in a value of type @e@, and the graph can also contain arbitrary labels
+-- as continuations, of type @c@
 data Go c e a
   = a        :>> Go c e a -- ^ Sequence
   | Go c e a :|| Go c e a -- ^ Branch
@@ -74,10 +74,10 @@ continues g = case g of
   Continue c -> [c]
   End _      -> []
 
--- | 'replaceContinue l x g' finds all places where 'g' continues to the label
--- 'l', and replaces them with the path 'x'.
-replaceContinue :: (Eq c) => c -> Go c e a -> Go c e a -> Go c e a
-replaceContinue cfrom gto = go where
+-- | @unroll l x g@ finds all places where @g@ continues to the label @l@, and
+-- replaces them with the path @x@.
+unroll :: (Eq c) => c -> Go c e a -> Go c e a -> Go c e a
+unroll cfrom gto = go where
   go g = case g of
     v :>> x -> v    :>> go x
     x :|| y -> go x :|| go y
@@ -89,15 +89,12 @@ mapPaths f sys = System
   { systemStart = f $ systemStart sys
   , systemPaths = fmap f $ systemPaths sys }
 
-systemUnroll :: (Ord c) => c -> System c e a -> System c e a
-systemUnroll c sys = case Map.lookup c $ systemPaths sys of
+-- | Like 'unroll', but applied to a network of paths.
+unrollSystem :: (Ord c) => c -> System c e a -> System c e a
+unrollSystem c sys = case Map.lookup c $ systemPaths sys of
   Nothing -> sys
-  Just path -> mapPaths (replaceContinue c path) $
+  Just path -> mapPaths (unroll c path) $
     sys { systemPaths = Map.delete c $ systemPaths sys }
-
-usedOnce :: (Ord c) => System c e a -> [c]
-usedOnce sys = uniqueElems $ concatMap continues $
-  systemStart sys : Map.elems (systemPaths sys)
 
 -- | Sorts a list, and then returns only elements that appear just once.
 uniqueElems :: (Ord a) => [a] -> [a]
@@ -107,10 +104,15 @@ uniqueElems = go . sort where
     else x : go (y : xs)
   go xs = xs
 
+-- | A list of all continuation labels that only appear once.
+usedOnce :: (Ord c) => System c e a -> [c]
+usedOnce sys = uniqueElems $ concatMap continues $
+  systemStart sys : Map.elems (systemPaths sys)
+
 -- | For each path which is only referenced in one location, removes the path
 -- and pastes its contents into the place it was referenced.
 simplifyPaths :: (Ord c) => System c e a -> System c e a
-simplifyPaths sys = foldr ($) sys $ map systemUnroll $ usedOnce sys
+simplifyPaths sys = foldr unrollSystem sys $ usedOnce sys
 
 -- | Given a start point and a mapping from continutation labels to code
 -- chunks, creates a single structure embedding the entire control flow.

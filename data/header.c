@@ -281,7 +281,6 @@ void builtin_type() {
     case NIL:
       push(&vnil);
       break;
-    // TODO: lambda
   }
   collect(v);
 }
@@ -390,19 +389,17 @@ bool equal(struct value *x, struct value *y) {
   if (x->type != y->type) {
     return false;
   }
-  if (x->type == STR) {
-    return strcmp(x->uvalue->str, y->uvalue->str) == 0;
+  struct pair *xp, *yp;
+  switch (x->type) {
+    case STR:
+      return strcmp(x->uvalue->str, y->uvalue->str) == 0;
+    case PAIR:
+      xp = x->uvalue->pair;
+      yp = y->uvalue->pair;
+      return equal(xp->car, yp->car) && equal(xp->cdr, yp->cdr);
+    default:
+      return true;
   }
-  if (x->type == PAIR) {
-    struct pair *xp = x->uvalue->pair;
-    struct pair *yp = y->uvalue->pair;
-    return equal(xp->car, yp->car) && equal(xp->cdr, yp->cdr);
-  }
-  if (x->type == NIL) {
-    return true;
-  }
-  // TODO: lambda
-  return false;
 }
 
 void builtin_equal() {

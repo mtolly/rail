@@ -11,7 +11,6 @@ import qualified Data.Map as Map
 import Data.Data (Data, Typeable)
 import Control.Monad.Trans.State
 
--- | TODO: lambda
 data Command
   = Boom
   | EOF
@@ -35,10 +34,9 @@ data Command
   | Uncons
   | Greater
   | Equal
-  | SetBranch -- ^ pop a bool value, set the state's condition
+  | SetBranch -- ^ pop a bool value, set the branch condition
   deriving (Eq, Ord, Show, Read, Data, Typeable)
 
--- | TODO: lambda
 data Val
   = Str String
   | Nil
@@ -176,7 +174,6 @@ action g (p, d) = case char g p of
     SW -> junction SE W
     NW -> junction W NE
     _ -> juncterr
-  -- TODO: lambda
   _ -> movement
   where movement = moveFrom p
         moveFrom pn = either (End . Just) Continue $ move g pn d
@@ -254,8 +251,8 @@ trySecondary d c = lookup d $ case c of
 
 type Function = System (Posn, Direction) (Maybe String) Command
 
--- | Reads a single function from a grid. The function beginning ($) must be
--- at (0, 0), going southeast.
+-- | Reads a single function from a grid. The function beginning (@$@) must be
+-- at @(0, 0)@, going 'SE'.
 makeSystem :: Grid -> Function
 makeSystem g = let
   dlr = ((0, 0), SE)
@@ -277,11 +274,14 @@ functionName ('\'' : cs) = case span varChar cs of
 functionName (c : cs) | c /= '\n' = functionName cs
 functionName _ = Nothing
 
+-- | Splits the text of a Rail file into functions.
 splitFunctions :: String -> [String]
-splitFunctions prog = case splitOn "\n$" ('\n' : prog) of
-  x : xs -> x : map ('$' :) xs
+splitFunctions prog = case splitOn "\n$" $ '\n' : prog of
+  x@('$':_) : xs -> x : map ('$' :) xs
+  _ : xs -> map ('$' :) xs
   [] -> []
 
+-- | Parses all the functions defined in the text of a Rail file.
 getFunctions :: String -> [(String, Function)]
 getFunctions = mapMaybe f . splitFunctions
   where f str = fmap (\n -> (n, makeSystem $ makeGrid str)) $ functionName str

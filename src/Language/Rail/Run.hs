@@ -1,3 +1,4 @@
+-- | A direct interpreter for Rail programs.
 module Language.Rail.Run where
 
 import Data.ControlFlow
@@ -29,12 +30,13 @@ emptyMemory = Memory
 
 type Sub = Flow (Maybe String) Command
 
--- | Compiles a single subroutine. The starting point ($) must be at (0, 0).
+-- | Compiles a single function. The starting point (@$@) must be at @(0, 0)@,
+-- going 'SE'.
 makeSub :: Grid -> Sub
 makeSub = flow . makeSystem
 
--- | A monad for executing Rail programs, combining ErrorT (for crash messages)
--- with StateT (for the stack and variables).
+-- | An IO monad for executing Rail programs, combining 'ErrorT' (for crash
+-- messages) with 'StateT' (for the stack and variables).
 type Rail = StateT Memory (ErrorT String IO)
 
 runRail :: Rail () -> Memory -> IO ()
@@ -71,6 +73,7 @@ popStr = pop >>= \v -> case v of
   Str s -> return s
   _ -> err "popStr: expected string"
 
+-- | Equivalent to 'read', except it returns Nothing on read error.
 readMaybe :: (Read a) => String -> Maybe a
 readMaybe s = case reads s of
   [(n, sp)] | all isSpace sp -> Just n
@@ -123,7 +126,6 @@ runCommand c = case c of
     Str _ -> "string"
     Nil -> "nil"
     Pair _ _ -> "list"
-    -- TODO: lambda
   Cons -> liftA2 (flip Pair) pop pop >>= push
   Uncons -> popPair >>= \(x, y) -> push x >> push y
   Size -> popStr >>= pushInt . fromIntegral . length
@@ -138,7 +140,7 @@ runCommand c = case c of
   Push var -> getVar var >>= push
   Pop var -> pop >>= setVar var
 
--- | Like getChar, but catches EOF exceptions and returns Nothing.
+-- | Like 'getChar', but catches EOF exceptions and returns Nothing.
 getChar' :: IO (Maybe Char)
 getChar' = catchIOError (fmap Just getChar) $ \e ->
   if isEOFError e then return Nothing else ioError e

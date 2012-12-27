@@ -1,22 +1,23 @@
--- | Rail to C compiler.
+-- | A Rail to C compiler. Generates a single file of C99-compliant code.
 module Language.Rail.C where
 
 import Data.ControlFlow
 import Language.Rail.Base
 import Paths_rail (getDataFileName)
-import Data.Char (toLower, isAscii, isAlphaNum)
+import Data.Char (toLower, isAscii, isAlphaNum, isPrint)
 import qualified Data.Map as Map
 import Data.List (nub, intersperse)
 import Text.PrettyPrint.HughesPJ (Doc, text, hcat, vcat, render, nest, ($$))
+import Numeric (showHex)
 
--- | Read the C Rail runtime.
+-- | The definitions of all the built-in functions and memory operations.
 header :: IO String
 header = getDataFileName "header.c" >>= readFile
 
+-- | The main function, which simply calls @fun_main()@ (the Rail @main@
+-- function).
 footer :: String
 footer = "\n\nint main() { fun_main(); return 0; }\n"
-
--- Name manglers
 
 -- | Translates each string to a unique one consisting only of ASCII letters,
 -- numbers, and underscores. It may start with an underscore, so for C
@@ -35,11 +36,22 @@ varName v = "var_" ++ mangle v
 funName :: String -> String
 funName f = "fun_" ++ mangle f
 
--- | Turns ((4, 7), NE) into "NE_4_7".
+-- | Turns @((4, 7), NE)@ into @\"NE_4_7\"@.
 makeLabel :: (Posn, Direction) -> String
 makeLabel ((r, c), d) = show d ++ "_" ++ show r ++ "_" ++ show c
 
--- Rail to C compiler
+-- | Produces a C99 string literal.
+stringLit :: String -> String
+stringLit s = "\"" ++ concatMap f s ++ "\"" where
+  f '"' = "\\\""
+  f c | elem c "\\\a\b\f\n\r\t\v" = take 2 $ drop 1 $ show c
+      | isAscii c && isPrint c      = [c]
+      | otherwise                   = let
+        hex = showHex (fromEnum c) ""
+        in case length hex of
+          len | len <= 4  -> "\\u" ++ replicate (4 - len) '0' ++ hex
+              | len <= 8  -> "\\U" ++ replicate (8 - len) '0' ++ hex
+              | otherwise -> error "stringLit: char out of range"
 
 makeCFile :: [(String, Function)] -> IO String
 makeCFile pairs = do
@@ -84,7 +96,7 @@ variables (System st ps) = nub $ concatMap pathVars (st : Map.elems ps) where
     x      :|| y -> pathVars x ++ pathVars y
     _            -> []
 
--- | For variable foo, make the declaration "struct value *var_foo = NULL;"
+-- | For variable foo, make the declaration @\"struct value *var_foo = NULL;@\"
 vardecl :: String -> Doc
 vardecl v = text $ "struct value *" ++ varName v ++ " = NULL;"
 
@@ -94,10 +106,10 @@ label str stmts = vcat
   [ nest (-2) $ text $ str ++ ":"
   , stmts ]
 
--- | Prints a string with @printf()@, then exits with status 0.
+-- | Prints a string with @printf()@, then exits with status @0@.
 exitWith :: String -> Doc
 exitWith s = vcat
-  [ text $ "printf(" ++ show s ++ ");" -- TODO: fix escapes
+  [ text $ "printf(" ++ stringLit s ++ ");"
   , text "exit(0);" ]
 
 -- | Generates statements for a single basic block.
@@ -128,18 +140,18 @@ command c = case c of
   Val v -> hcat [text "push(", generate v, text ");"]
   _ -> text $ "builtin_" ++ map toLower (show c) ++ "();"
 
--- | For variable foo: "remove_reference(var_foo);"
+-- | For variable foo: @\"remove_reference(var_foo);@\"
 removeRef :: String -> Doc
 removeRef v = text $ "remove_reference(" ++ varName v ++ ");"
 
--- | For variable foo: "collect(var_foo);"
+-- | For variable foo: @\"collect(var_foo);@\"
 collect :: String -> Doc
 collect v = text $ "collect(" ++ varName v ++ ");"
 
--- | An expression that generates @struct value *foo@.
+-- | An expression that generates @\@struct value *foo@\@.
 generate :: Val -> Doc
 generate v = case v of
-  Str s -> text $ "new_str_copy(" ++ show s ++ ")" -- TODO: fix escapes
+  Str s -> text $ "new_str_copy(" ++ stringLit s ++ ")"
   Nil -> text "new_nil()"
   Pair x y ->
     hcat [text "make_pair(", generate x, text ", ", generate y, text ")"]
