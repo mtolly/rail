@@ -93,6 +93,12 @@ struct value *new_str_copy(char *str) {
   return new_str(buf);
 }
 
+struct value *const_str(char *str) {
+  struct value *v = new_str_copy(str);
+  v->references = -1;
+  return v;
+}
+
 struct value *new_int(int i) {
   char *s = malloc(20 * sizeof(char));
   if (s == NULL) { malloc_error(); }
@@ -257,16 +263,23 @@ void builtin_underflow() {
 }
 
 void builtin_type() {
+  static union uvalue ustr  = {"string"};
+  static union uvalue ulist = {"list"};
+  static union uvalue unil  = {"nil"};
+  static struct value vstr  = {STR, &ustr,  -1};
+  static struct value vlist = {STR, &ulist, -1};
+  static struct value vnil  = {STR, &unil,  -1};
+  
   struct value *v = pop();
   switch (v->type) {
     case STR:
-      push(new_str_copy("string"));
+      push(&vstr);
       break;
     case PAIR:
-      push(new_str_copy("list"));
+      push(&vlist);
       break;
     case NIL:
-      push(new_str_copy("nil"));
+      push(&vnil);
       break;
     // TODO: lambda
   }
