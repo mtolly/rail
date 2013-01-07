@@ -17,7 +17,7 @@ import Control.Monad.Trans.State (execState, gets, modify)
 import Control.Monad (unless)
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
-import Data.List (sort)
+import Data.List (sort, group)
 import Data.Data (Data, Typeable)
 
 -- | A partial control flow graph, with nodes of type @a@. Each leaf of the tree
@@ -98,11 +98,7 @@ unrollSystem c sys = case Map.lookup c $ systemPaths sys of
 
 -- | Sorts a list, and then returns only elements that appear just once.
 uniqueElems :: (Ord a) => [a] -> [a]
-uniqueElems = go . sort where
-  go (x : y : xs) = if x == y
-    then go $ dropWhile (== x) xs
-    else x : go (y : xs)
-  go xs = xs
+uniqueElems xs = [ x | [x] <- group $ sort xs ]
 
 -- | A list of all continuation labels that only appear once.
 usedOnce :: (Ord c) => System c e a -> [c]
