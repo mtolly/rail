@@ -17,14 +17,12 @@ data Memory = Memory
   { stack     :: [Val]
   , variables :: Map.Map String Val
   , functions :: Map.Map String Sub
-  , condition :: Bool -- ^ used for branches
   }
 
 emptyMemory :: Memory
 emptyMemory = Memory
   { stack     = []
   , variables = Map.empty
-  , condition = False
   , functions = Map.empty
   }
 
@@ -104,7 +102,6 @@ pushBool b = push $ Str $ if b then "1" else "0"
 runCommand :: Command -> Rail ()
 runCommand c = case c of
   Val x -> push x
-  SetBranch -> popBool >>= \b -> modify $ \mem -> mem { condition = b }
   Call fun -> gets functions >>= \funs -> case Map.lookup fun funs of
     Nothing -> err $ "call: undefined function " ++ fun
     Just sub -> call sub
@@ -152,7 +149,7 @@ math op = liftA2 (flip op) popInt popInt >>= push . Str . show
 run :: Sub -> Rail ()
 run g = case g of
   x :>> c -> runCommand x >> run c
-  x :|| y -> gets condition >>= \b -> run $ if b then y else x
+  x :|| y -> popBool >>= \b -> run $ if b then y else x
   Continue _ -> return ()
   End e -> maybe (return ()) (lift . throwError) e
 

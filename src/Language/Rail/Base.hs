@@ -34,7 +34,6 @@ data Command
   | Uncons
   | Greater
   | Equal
-  | SetBranch -- ^ pop a bool value, set the branch condition
   deriving (Eq, Ord, Show, Read, Data, Typeable)
 
 data Val
@@ -154,22 +153,22 @@ action g (p, d) = case char g p of
   'q' -> Equal :>> movement
   't' -> Val (Str "1") :>> movement
   -- Y junctions
-  'v' -> SetBranch :>> case d of
+  'v' -> case d of
     N -> junction NW NE
     SE -> junction NE S
     SW -> junction S NW
     _ -> juncterr
-  '^' -> SetBranch :>> case d of
+  '^' -> case d of
     S -> junction SE SW
     NW -> junction SW N
     NE -> junction N SE
     _ -> juncterr
-  '>' -> SetBranch :>> case d of
+  '>' -> case d of
     W -> junction SW NW
     NE -> junction NW E
     SE -> junction E SW
     _ -> juncterr
-  '<' -> SetBranch :>> case d of
+  '<' -> case d of
     E -> junction NE SE
     SW -> junction SE W
     NW -> junction W NE

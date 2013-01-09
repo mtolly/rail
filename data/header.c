@@ -225,6 +225,15 @@ void pop_to_var(struct value **var) {
   add_reference(*var);
 }
 
+bool pop_bool() {
+  int i = pop_int();
+  if (i == 0 || i == 1) {
+    return i;
+  }
+  fprintf(stderr, "pop_bool: not 0 or 1\n");
+  exit(0);
+}
+
 /***
  * Built-in operations
  */
@@ -409,17 +418,6 @@ void builtin_equal() {
   push(new_int(equal(x, y)));
   collect(x);
   collect(y);
-}
-
-void builtin_setbranch() {
-  int i = pop_int();
-  if (i == 0 || i == 1) {
-    condition = i;
-  }
-  else {
-    fprintf(stderr, "builtin_setbranch: not 0 or 1\n");
-    exit(0);
-  }
 }
 
 /***

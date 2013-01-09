@@ -46,8 +46,7 @@ becomes this C function:
       goto E_5_4;
     E_5_4:
       builtin_eof();
-      builtin_setbranch();
-      if (condition) {
+      if (pop_bool()) {
         goto done;
       } else {
         builtin_input();

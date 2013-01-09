@@ -119,7 +119,7 @@ block g = case g of
   v :>> x -> command v $$ block x
   -- Branch: if statement
   x :|| y -> vcat
-    [ text "if (condition) {"
+    [ text "if (pop_bool()) {"
     , nest 2 $ block y
     , text "} else {"
     , nest 2 $ block x
