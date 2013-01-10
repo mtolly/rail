@@ -88,7 +88,7 @@ makeFunction fname sys = let
 -- | Find all the local variables used in a function.
 variables :: Function -> [String]
 variables (System st ps) = nub $ concatMap pathVars (st : Map.elems ps) where
-  pathVars :: Go (Posn, Direction) (Maybe String) Command -> [String]
+  pathVars :: Go (Posn, Direction) Result Command -> [String]
   pathVars g = case g of
     Push v :>> x -> v : pathVars x
     Pop  v :>> x -> v : pathVars x
@@ -113,7 +113,7 @@ exitWith s = vcat
   , text "exit(0);" ]
 
 -- | Generates statements for a single basic block.
-block :: Go (Posn, Direction) (Maybe String) Command -> Doc
+block :: Go (Posn, Direction) Result Command -> Doc
 block g = case g of
   -- Node: call command function
   v :>> x -> command v $$ block x
@@ -126,10 +126,11 @@ block g = case g of
     , text "}"]
   -- Continue: goto a label
   Continue pd -> text $ "goto " ++ makeLabel pd ++ ";"
-  -- Successful end: return from function
-  End Nothing -> text "goto done;"
-  -- Crash end: print message and exit()
-  End (Just s) -> exitWith s
+  -- End: succesful end of function, or crash
+  End e -> case e of
+    Return -> text "goto done;"
+    Internal s -> exitWith s
+    Boom -> text "builtin_boom();"
 
 -- | Produces statements to execute a single command.
 command :: Command -> Doc

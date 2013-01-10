@@ -12,6 +12,7 @@ import Control.Monad.Trans.Class (lift)
 import Control.Monad.IO.Class (liftIO)
 import System.IO (isEOF)
 import System.IO.Error (catchIOError, isEOFError)
+import Data.Void (absurd)
 
 data Memory = Memory
   { stack     :: [Val]
@@ -26,7 +27,7 @@ emptyMemory = Memory
   , functions = Map.empty
   }
 
-type Sub = Flow (Maybe String) Command
+type Sub = Flow Result Command
 
 -- | Compiles a single function. The starting point (@$@) must be at @(0, 0)@,
 -- going 'SE'.
@@ -110,7 +111,6 @@ runCommand c = case c of
   Mult -> math (*)
   Div -> math div
   Rem -> math mod
-  Boom -> popStr >>= err
   EOF -> liftIO isEOF >>= \b -> push $ Str $ if b then "1" else "0"
   Output -> popStr >>= liftIO . putStr
   Input -> liftIO getChar' >>= \mc -> case mc of
@@ -150,8 +150,11 @@ run :: Sub -> Rail ()
 run g = case g of
   x :>> c -> runCommand x >> run c
   x :|| y -> popBool >>= \b -> run $ if b then y else x
-  Continue _ -> return ()
-  End e -> maybe (return ()) (lift . throwError) e
+  Continue c -> absurd c
+  End e -> case e of
+    Return -> return ()
+    Boom -> popStr >>= err
+    Internal s -> err s
 
 -- | Runs a function, which creates a new scope for the length of the function.
 call :: Sub -> Rail ()
@@ -164,4 +167,4 @@ compile str = emptyMemory
   where mapSnd f (x, y) = (x, f y)
 
 runMemory :: Memory -> IO ()
-runMemory = runRail $ run $ Call "main" :>> End Nothing
+runMemory = runRail $ run $ Call "main" :>> End Return

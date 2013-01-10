@@ -12,8 +12,7 @@ import Data.Data (Data, Typeable)
 import Control.Monad.Trans.State
 
 data Command
-  = Boom
-  | EOF
+  = EOF
   | Input
   | Output
   | Underflow
@@ -41,6 +40,12 @@ data Val
   | Nil
   | Pair Val Val
   deriving (Eq, Ord, Show, Read, Data, Typeable)
+
+data Result
+  = Return
+  | Boom
+  | Internal String
+  deriving (Eq, Ord, Show, Read)
 
 type Posn = (Int, Int)
 data Direction = N | NE | E | SE | S | SW | W | NW
@@ -87,10 +92,10 @@ varChar :: Char -> Bool
 varChar = (`notElem` "{}!()'")
 
 action ::
-  Grid -> (Posn, Direction) -> Go (Posn, Direction) (Maybe String) Command
+  Grid -> (Posn, Direction) -> Go (Posn, Direction) Result Command
 action g (p, d) = case char g p of
-  '#' -> End Nothing
-  'b' -> Boom :>> movement
+  '#' -> End Return
+  'b' -> End Boom
   'e' -> EOF :>> movement
   'i' -> Input :>> movement
   'o' -> Output :>> movement
@@ -175,17 +180,17 @@ action g (p, d) = case char g p of
     _ -> juncterr
   _ -> movement
   where movement = moveFrom p
-        moveFrom pn = either (End . Just) Continue $ move g pn d
+        moveFrom pn = either (End . Internal) Continue $ move g pn d
         junction dl dr = force g p dl :|| force g p dr
-        lexerr what = End $ Just $ "lex error: invalid " ++ what
-        juncterr = End $ Just "internal junction error"
+        lexerr what = End $ Internal $ "lex error: invalid " ++ what
+        juncterr = End $ Internal "internal junction error"
 
 -- | Move out of a junction, as if via a primary connection. If the direction
 -- can't be moved into, ends with an error.
 force ::
-  Grid -> Posn -> Direction -> Go (Posn, Direction) (Maybe String) Command
+  Grid -> Posn -> Direction -> Go (Posn, Direction) Result Command
 force g p d = let p' = primary p d in case tryPrimary d $ char g p' of
-  Nothing -> End $ Just "invalid movement out of junction"
+  Nothing -> End $ Internal "invalid movement out of junction"
   Just d' -> Continue (p', d')
 
 -- | Moves out of a non-junction square, by either a primary or secondary
@@ -248,7 +253,7 @@ trySecondary d c = lookup d $ case c of
   '\\' -> zip [N,  W,  S,  E]  [NW, NW, SE, SE]
   _ -> [] -- can't be a secondary connection
 
-type Function = System (Posn, Direction) (Maybe String) Command
+type Function = System (Posn, Direction) Result Command
 
 -- | Reads a single function from a grid. The function beginning (@$@) must be
 -- at @(0, 0)@, going 'SE'.
