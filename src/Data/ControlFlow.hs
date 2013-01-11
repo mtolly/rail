@@ -125,3 +125,19 @@ flow sys = let
     Continue c -> getFlow c
     End e      -> End e
   in toFlow $ systemStart sys
+
+mapContinue :: (c -> c') -> Go c e a -> Go c' e a
+mapContinue f g = case g of
+  Continue c -> Continue $ f c
+  x :>> xs   -> x :>> mapContinue f xs
+  x :|| y    -> mapContinue f x :|| mapContinue f y
+  End e      -> End e
+
+-- | Replaces continuation labels with numbers starting from 0.
+numberPaths :: (Eq c) => System c e a -> System Int e a
+numberPaths (System st ps) = let
+  contToInt c = fromMaybe err $ lookup c $ zip (Map.keys ps) [0..]
+  err = error "numberPaths: missing continue"
+  in System
+    { systemStart = mapContinue contToInt st
+    , systemPaths = Map.mapKeys contToInt $ fmap (mapContinue contToInt) ps }
