@@ -53,13 +53,13 @@ stringLit s = "\"" ++ concatMap f s ++ "\"" where
               | len <= 8  -> "\\U" ++ replicate (8 - len) '0' ++ hex
               | otherwise -> error "stringLit: char out of range"
 
-makeCFile :: [(String, Function)] -> IO String
+makeCFile :: [(String, System' (Posn, Direction))] -> IO String
 makeCFile pairs = do
   h <- header
   let funs = render $ makeProgram pairs
   return $ h ++ funs ++ footer
 
-makeProgram :: [(String, Function)] -> Doc
+makeProgram :: [(String, System' (Posn, Direction))] -> Doc
 makeProgram pairs = let
   makeForward fname = text $ "void " ++ funName fname ++ "();"
   in vcat
@@ -68,7 +68,7 @@ makeProgram pairs = let
     , vcat $ intersperse (text "") $ map (uncurry makeFunction) pairs ]
 
 -- | Translates a Rail function to a C function.
-makeFunction :: String -> Function -> Doc
+makeFunction :: String -> System' (Posn, Direction) -> Doc
 makeFunction fname sys = let
   vars = variables sys
   startCode = block $ systemStart sys
@@ -86,7 +86,7 @@ makeFunction fname sys = let
     , text "}" ]
 
 -- | Find all the local variables used in a function.
-variables :: Function -> [String]
+variables :: System' (Posn, Direction) -> [String]
 variables (System st ps) = nub $ concatMap pathVars (st : Map.elems ps) where
   pathVars :: Go (Posn, Direction) Result Command -> [String]
   pathVars g = case g of

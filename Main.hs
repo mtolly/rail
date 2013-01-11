@@ -2,7 +2,7 @@ module Main where
 
 import System.Environment (getArgs)
 import System.IO (hPutStrLn, stderr)
-import Language.Rail.Base
+import Language.Rail.Parse
 import Language.Rail.Run
 import Language.Rail.C
 

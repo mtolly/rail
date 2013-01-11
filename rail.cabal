@@ -22,6 +22,7 @@ Library
                     pretty
   Exposed-Modules:  Data.ControlFlow
                     Language.Rail.Base
+                    Language.Rail.Parse
                     Language.Rail.Run
                     Language.Rail.C
   Other-Modules:    Paths_rail
