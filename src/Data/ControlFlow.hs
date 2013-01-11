@@ -23,9 +23,9 @@ import Data.Data (Data, Typeable)
 -- | A partial control flow graph, with nodes of type @a@. Each leaf of the tree
 -- ends in a value of type @e@, and the graph can also contain arbitrary labels
 -- as continuations, of type @c@
-data Go c e a
-  = a        :>> Go c e a -- ^ Sequence
-  | Go c e a :|| Go c e a -- ^ Branch
+data Path c e a
+  = a          :>> Path c e a -- ^ Sequence
+  | Path c e a :|| Path c e a -- ^ Branch
   | Continue c
   | End e
   deriving
@@ -37,13 +37,13 @@ infixr 1 :>>
 infix  1 :||
 
 -- | A control flow graph without continuation labels.
-type Flow e a = Go Void e a
+type Flow e a = Path Void e a
 
 -- | A complete control flow graph in the form of a starting block, and a
 -- mapping from labels to blocks.
 data System c e a = System
-  { systemStart :: Go c e a
-  , systemPaths :: Map.Map c (Go c e a)
+  { systemStart :: Path c e a
+  , systemPaths :: Map.Map c (Path c e a)
   } deriving (Eq, Ord, Show, Read, Functor, Foldable, Traversable)
 
 -- | Returns the set of all labels which are reachable from the start path.
@@ -67,7 +67,7 @@ cleanPaths sys = let
   in sys { systemPaths = systemPaths sys `Map.intersection` used }
 
 -- | The list of all labels directly continued to by the given path.
-continues :: (Ord c) => Go c e a -> [c]
+continues :: (Ord c) => Path c e a -> [c]
 continues g = case g of
   _ :>> x    -> continues x
   x :|| y    -> continues x ++ continues y
@@ -76,7 +76,7 @@ continues g = case g of
 
 -- | @unroll l x g@ finds all places where @g@ continues to the label @l@, and
 -- replaces them with the path @x@.
-unroll :: (Eq c) => c -> Go c e a -> Go c e a -> Go c e a
+unroll :: (Eq c) => c -> Path c e a -> Path c e a -> Path c e a
 unroll cfrom gto = go where
   go g = case g of
     v :>> x -> v    :>> go x
@@ -84,7 +84,7 @@ unroll cfrom gto = go where
     Continue c | c == cfrom -> gto
     _       -> g
 
-mapPaths :: (Go c e a -> Go c e' a') -> System c e a -> System c e' a'
+mapPaths :: (Path c e a -> Path c e' a') -> System c e a -> System c e' a'
 mapPaths f sys = System
   { systemStart = f $ systemStart sys
   , systemPaths = fmap f $ systemPaths sys }
@@ -126,7 +126,7 @@ flow sys = let
     End e      -> End e
   in toFlow $ systemStart sys
 
-mapContinue :: (c -> c') -> Go c e a -> Go c' e a
+mapContinue :: (c -> c') -> Path c e a -> Path c' e a
 mapContinue f g = case g of
   Continue c -> Continue $ f c
   x :>> xs   -> x :>> mapContinue f xs

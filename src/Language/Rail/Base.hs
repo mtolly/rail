@@ -1,7 +1,6 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 module Language.Rail.Base where
 
-import Data.ControlFlow
 import Data.Data (Data, Typeable)
 
 data Command
@@ -45,7 +44,3 @@ type Posn = (Int, Int)
 
 data Direction = N | NE | E | SE | S | SW | W | NW
   deriving (Eq, Ord, Show, Read, Enum, Bounded, Data, Typeable)
-
-type Go'     c = Go     c Result Command
-type System' c = System c Result Command
-type Flow'     = Flow     Result Command

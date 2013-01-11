@@ -3,7 +3,7 @@ module Language.Rail.Run where
 
 import Data.ControlFlow
 import Language.Rail.Base
-import Language.Rail.Parse (Grid, makeSystem, getFunctions)
+import Language.Rail.Parse (getFunctions)
 import qualified Data.Map as Map
 import Data.Char (isSpace)
 import Control.Applicative
@@ -18,7 +18,7 @@ import Data.Void (absurd)
 data Memory = Memory
   { stack     :: [Val]
   , variables :: Map.Map String Val
-  , functions :: Map.Map String Flow'
+  , functions :: Map.Map String (Flow Result Command)
   }
 
 emptyMemory :: Memory
@@ -27,11 +27,6 @@ emptyMemory = Memory
   , variables = Map.empty
   , functions = Map.empty
   }
-
--- | Compiles a single function. The starting point (@$@) must be at @(0, 0)@,
--- going 'SE'.
-makeSub :: Grid -> Flow'
-makeSub = flow . makeSystem
 
 -- | An IO monad for executing Rail programs, combining 'ErrorT' (for crash
 -- messages) with 'StateT' (for the stack and variables).
@@ -145,7 +140,7 @@ math :: (Integer -> Integer -> Integer) -> Rail ()
 math op = liftA2 (flip op) popInt popInt >>= push . Str . show
 
 -- | Runs a piece of code. Does not create a new scope.
-run :: Flow' -> Rail ()
+run :: Flow Result Command -> Rail ()
 run g = case g of
   x :>> c -> runCommand x >> run c
   x :|| y -> popBool >>= \b -> run $ if b then y else x
@@ -156,7 +151,7 @@ run g = case g of
     Internal s -> err s
 
 -- | Runs a function, which creates a new scope for the length of the function.
-call :: Flow' -> Rail ()
+call :: Flow Result Command -> Rail ()
 call sub = gets variables >>= \vs ->
   setVariables Map.empty >> run sub >> setVariables vs
 
