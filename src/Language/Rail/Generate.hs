@@ -144,8 +144,12 @@ leftChunk sys = let
               , let pipes = paths p * 2 - 1 ]
 
 routeChunk :: System Int Result Command -> Block
-routeChunk = undefined
+routeChunk _ = empty
 
-test :: String -> Int -> System Int Result Command -> Block
-test s n sys = horiz (leftChunk sys) $ vert (nameChunk s) $
-  horiz (commandChunk n sys) (routeChunk sys)
+functionBlock :: (Eq c) => String -> System c Result Command -> Block
+functionBlock name sys = let
+  sys' = numberPaths sys
+  in horiz (leftChunk sys') $
+    vert (nameChunk name) $
+      horiz (commandChunk (systemWidth sys) sys') $
+        routeChunk sys'
