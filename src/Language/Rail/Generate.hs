@@ -4,10 +4,7 @@ import Language.Rail.Base
 import Data.ControlFlow
 import Data.Char (isDigit)
 import qualified Data.Map as Map
-import Control.Monad (forM_)
-
-import Control.Monad.ST
-import Data.Array.ST
+import Text.Block
 
 -- | A string literal, to be read travelling east.
 strLit :: String -> String
@@ -58,15 +55,15 @@ command c = case c of
   Greater -> "g"
   Equal -> "q"
 
-width :: Path c Result Command -> Int
-width g = case g of
+pathWidth :: Path c Result Command -> Int
+pathWidth g = case g of
   End e      -> length $ end e
   Continue _ -> 0
-  x :|| y    -> 5 + max (width x) (width y)
-  x :>> xs   -> length (command x) + width xs
+  x :|| y    -> 5 + max (pathWidth x) (pathWidth y)
+  x :>> xs   -> length (command x) + pathWidth xs
 
 systemWidth :: System c Result Command -> Int
-systemWidth (System st ps) = maximum $ map width $ st : Map.elems ps
+systemWidth (System st ps) = maximum $ map pathWidth $ st : Map.elems ps
 
 paths :: Path c Result Command -> Int
 paths g = case g of
@@ -80,7 +77,7 @@ Here is the kind of Rail code we will generate:
 
 $  .'function'   .
  \
-  -[starting path]-\
+. -[starting path]-\
                    |
  /-[next path]-----+-\
  |                 | |
@@ -90,7 +87,7 @@ $  .'function'   .
  |  -<               |
  |    \-[end]#       +
  |                   |
- \-------------------/
+.\-------------------/
 
 The dots on the first line mark the first and last columns of instructions.
 The branch near the bottom takes up 5 columns, "\  /-" on the first line.
@@ -105,41 +102,50 @@ If the top branch splits into more branches, the branch can be extended like so:
 
 -}
 
-type Grid s = STUArray s Posn Char
+-- | Generates a branch, given the number of subpaths in the top branch.
+branch :: Int -> Block
+branch 1 = text $ unlines ["\\  /-", " -<", "   \\-"]
+branch n = text $ unlines $
+  ["\\  /-", " -<", "   \\"] ++ replicate ((n - 1) * 2 - 1) "   |" ++ ["   \\-"]
 
--- | Takes height and width.
-makeGrid :: Int -> Int -> ST s (Grid s)
-makeGrid h w = newArray ((0, 0), (h - 1, w - 1)) ' '
+pathBlock :: Int -> Path c Result Command -> Block
+pathBlock w p = case p of
+  x :>> p' -> let b = line $ command x in horiz b $ pathBlock (w - width b) p'
+  x :|| y -> let
+    b = branch $ paths x
+    w' = w - width b
+    in horiz b $ vert (pathBlock w' x) $ vert (line "") $ pathBlock w' y
+  End e -> line $ end e
+  Continue _ -> line $ replicate w '-'
 
-writeStr :: Grid s -> Posn -> String -> ST s ()
-writeStr _ _      ""     = return ()
-writeStr g (r, c) (x:xs) = writeArray g (r, c) x >> writeStr g (r, c + 1) xs
+nameChunk :: String -> Block
+nameChunk s = vert (line $ "'" ++ s ++ "'") (line "")
 
--- | Generates a split path, given the top-left corner and the number of
--- branches in the top path. Returns the new beginnings of the top and bottom
--- branches.
-writeBranch :: Grid s -> Posn -> Int -> ST s (Posn, Posn)
-writeBranch g p@(r, c) h = do
-  writeStr g p "\\  /-"
-  writeStr g (r + 1, c) " -<"
-  forM_ [1 .. h - 1] $ \n -> do
-    writeArray g (r + 2 * n, c + 3) '\\'
-    writeArray g (r + 2 * n + 1, c + 3) '|'
-  writeStr g (r + 2 * h, c + 3) "\\-"
-  let xp = (r, c + 5)
-      yp = (r + 2 * h, c + 5)
-  return (xp, yp)
+commandChunk :: Int -> System Int Result Command -> Block
+commandChunk w sys = let
+  blank = line ""
+  dashes = line $ replicate w '-'
+  in foldr vert empty $
+    [ pathBlock w $ systemStart sys
+    , blank ]
+    ++ concat [ [pathBlock w p, blank, dashes, blank]
+              | p <- Map.elems $ systemPaths sys ]
 
--- | Takes a grid, top-left corner, width, and path.
-writePath :: Grid s -> Posn -> Int -> Path c Result Command -> ST s ()
-writePath g p@(r, c) w go = case go of
-  x :>> xs -> let
-    com = command x
-    len = length com
-    in writeStr g p com >> writePath g (r, c + len) (w - len) xs
-  x :|| y -> do
-    (xp, yp) <- writeBranch g p $ paths x
-    writePath g xp (w - 5) x
-    writePath g yp (w - 5) y
-  End e -> writeStr g p (end e)
-  Continue _ -> writeStr g p (replicate w '-')
+leftChunk :: System Int Result Command -> Block
+leftChunk sys = let
+  blank = line ""
+  in foldr vert empty $
+    [ line "$  "
+    , line " \\ "
+    , line "  -"
+    , blank ]
+    ++ concat [ [line " /-"] ++ replicate pipes (line " | ") ++ [line " \\-"]
+              | p <- Map.elems $ systemPaths sys
+              , let pipes = paths p * 2 - 1 ]
+
+routeChunk :: System Int Result Command -> Block
+routeChunk = undefined
+
+test :: String -> Int -> System Int Result Command -> Block
+test s n sys = horiz (leftChunk sys) $ vert (nameChunk s) $
+  horiz (commandChunk n sys) (routeChunk sys)

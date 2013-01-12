@@ -4,7 +4,10 @@ data Block = Block
   { blockLines :: [String]
   , height :: Int
   , width :: Int
-  } deriving (Eq, Ord, Show, Read)
+  } deriving (Eq, Ord)
+
+instance Show Block where
+  show = unlines . blockLines
 
 empty :: Block
 empty = Block
