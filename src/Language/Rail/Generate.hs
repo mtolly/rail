@@ -4,12 +4,10 @@ import Language.Rail.Base
 import Data.ControlFlow
 import Data.Char (isDigit)
 import qualified Data.Map as Map
-import Data.Maybe (fromMaybe)
 import Control.Monad (forM_)
 
 import Control.Monad.ST
 import Data.Array.ST
-import Data.Array.MArray
 
 -- | A string literal, to be read travelling east.
 strLit :: String -> String
