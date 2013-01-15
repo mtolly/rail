@@ -59,7 +59,7 @@ readConstant pnchs endc = go "" pnchs where
 varChar :: Char -> Bool
 varChar = (`notElem` "{}!()'")
 
-action :: Grid -> (Posn, Direction) -> Path (Posn, Direction) Result Command
+action :: Grid -> (Posn, Direction) -> Path (Posn, Direction) () Result Command
 action g (p, d) = case char g p of
   '#' -> End Return
   'b' -> End Boom
@@ -148,14 +148,14 @@ action g (p, d) = case char g p of
   _ -> movement
   where movement = moveFrom p
         moveFrom pn = either (End . Internal) Continue $ move g pn d
-        junction dl dr = force g p dl :|| force g p dr
+        junction dl dr = Branch () (force g p dl) (force g p dr)
         lexerr what = End $ Internal $ "lex error: invalid " ++ what
         juncterr = End $ Internal "internal junction error"
 
 -- | Move out of a junction, as if via a primary connection. If the direction
 -- can't be moved into, ends with an error.
 force ::
-  Grid -> Posn -> Direction -> Path (Posn, Direction) Result Command
+  Grid -> Posn -> Direction -> Path (Posn, Direction) () Result Command
 force g p d = let p' = primary p d in case tryPrimary d $ char g p' of
   Nothing -> End $ Internal "invalid movement out of junction"
   Just d' -> Continue (p', d')
@@ -223,7 +223,7 @@ trySecondary d c = lookup d $ case c of
 
 -- | Reads a single function from a grid. The function beginning (@$@) must be
 -- at @(0, 0)@, going 'SE'.
-makeSystem :: Grid -> System (Posn, Direction) Result Command
+makeSystem :: Grid -> System (Posn, Direction) () Result Command
 makeSystem g = let
   dlr = ((0, 0), SE)
   -- We recursively add only the paths which are actually used in the function.
@@ -252,6 +252,6 @@ splitFunctions prog = case splitOn "\n$" $ '\n' : prog of
   [] -> []
 
 -- | Parses all the functions defined in the text of a Rail file.
-getFunctions :: String -> [(String, System (Posn, Direction) Result Command)]
+getFunctions :: String -> [(String, System (Posn, Direction) () Result Command)]
 getFunctions = mapMaybe f . splitFunctions
   where f str = fmap (\n -> (n, makeSystem $ makeGrid str)) $ functionName str

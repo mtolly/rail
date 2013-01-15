@@ -56,24 +56,24 @@ command c = case c of
   Equal -> "q"
 
 -- | The minimum width needed to encode the given path.
-pathWidth :: Path c Result Command -> Int
+pathWidth :: Path c () Result Command -> Int
 pathWidth g = case g of
-  End e      -> length $ end e
-  Continue _ -> 0
-  x :|| y    -> 5 + max (pathWidth x) (pathWidth y)
-  x :>> xs   -> length (command x) + pathWidth xs
+  End e         -> length $ end e
+  Continue _    -> 0
+  Branch () x y -> 5 + max (pathWidth x) (pathWidth y)
+  x :>> xs      -> length (command x) + pathWidth xs
 
 -- | The minimum width needed to encode all the paths inside the system.
-systemWidth :: System c Result Command -> Int
+systemWidth :: System c () Result Command -> Int
 systemWidth (System st ps) = maximum $ map pathWidth $ st : Map.elems ps
 
 -- | The number of leaf nodes in a path's tree, equal to the number of branches
 -- plus 1.
-leaves :: Path c Result Command -> Int
+leaves :: Path c () Result Command -> Int
 leaves g = case g of
-  x :|| y  -> leaves x + leaves y
-  _ :>> xs -> leaves xs
-  _        -> 1
+  Branch () x y -> leaves x + leaves y
+  _ :>> xs      -> leaves xs
+  _             -> 1
 
 {-
 
@@ -117,10 +117,10 @@ branch n = text $ unlines $
   ["\\  /-", " -<", "   \\"] ++ replicate ((n - 1) * 2 - 1) "   |" ++ ["   \\-"]
 
 -- | Generates the code for a path or subpath, to be read travelling east.
-pathBlock :: Int -> Path c Result Command -> Block
+pathBlock :: Int -> Path c () Result Command -> Block
 pathBlock w p = case p of
   x :>> p' -> let b = line $ command x in horiz b $ pathBlock (w - width b) p'
-  x :|| y -> let
+  Branch () x y -> let
     b = branch $ leaves x
     w' = w - width b
     in horiz b $ vert (pathBlock w' x) $ vert (line "") $ pathBlock w' y
@@ -130,7 +130,7 @@ pathBlock w p = case p of
 nameChunk :: String -> Block
 nameChunk s = vert (line $ "'" ++ s ++ "'") (line "")
 
-commandChunk :: Int -> System Int Result Command -> Block
+commandChunk :: Int -> System Int () Result Command -> Block
 commandChunk w sys = let
   blank = line ""
   dashes = line $ replicate w '-'
@@ -140,7 +140,7 @@ commandChunk w sys = let
     ++ concat [ [pathBlock w p, blank, dashes, blank]
               | p <- Map.elems $ systemPaths sys ]
 
-leftChunk :: System Int Result Command -> Block
+leftChunk :: System Int () Result Command -> Block
 leftChunk sys = let
   blank = line ""
   in foldr vert empty $
@@ -152,10 +152,10 @@ leftChunk sys = let
               | p <- Map.elems $ systemPaths sys
               , let pipes = leaves p * 2 - 1 ]
 
-routeChunk :: System Int Result Command -> Block
+routeChunk :: System Int () Result Command -> Block
 routeChunk _ = empty
 
-functionBlock :: (Eq c) => String -> System c Result Command -> Block
+functionBlock :: (Eq c) => String -> System c () Result Command -> Block
 functionBlock name sys = let
   sys' = numberPaths sys
   in horiz (leftChunk sys') $

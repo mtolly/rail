@@ -54,13 +54,13 @@ stringLit s = "\"" ++ concatMap f s ++ "\"" where
               | len <= 8  -> "\\U" ++ replicate (8 - len) '0' ++ hex
               | otherwise -> error "stringLit: char out of range"
 
-makeCFile :: [(String, System (Posn, Direction) Result Command)] -> IO String
+makeCFile :: [(String, System (Posn, Direction) () Result Command)] -> IO String
 makeCFile pairs = do
   h <- header
   let funs = render $ makeProgram pairs
   return $ h ++ funs ++ footer
 
-makeProgram :: [(String, System (Posn, Direction) Result Command)] -> Doc
+makeProgram :: [(String, System (Posn, Direction) () Result Command)] -> Doc
 makeProgram pairs = let
   makeForward fname = text $ "void " ++ funName fname ++ "();"
   in vcat
@@ -69,7 +69,7 @@ makeProgram pairs = let
     , vcat $ intersperse (text "") $ map (uncurry makeFunction) pairs ]
 
 -- | Translates a Rail function to a C function.
-makeFunction :: String -> System (Posn, Direction) Result Command -> Doc
+makeFunction :: String -> System (Posn, Direction) () Result Command -> Doc
 makeFunction fname sys = let
   vars = variables sys
   startCode = block $ systemStart sys
@@ -87,15 +87,15 @@ makeFunction fname sys = let
     , text "}" ]
 
 -- | Find all the local variables used in a function.
-variables :: System (Posn, Direction) Result Command -> [String]
+variables :: System (Posn, Direction) () Result Command -> [String]
 variables (System st ps) = nub $ concatMap pathVars (st : Map.elems ps) where
-  pathVars :: Path (Posn, Direction) Result Command -> [String]
+  pathVars :: Path (Posn, Direction) () Result Command -> [String]
   pathVars g = case g of
-    Push v :>> x -> v : pathVars x
-    Pop  v :>> x -> v : pathVars x
-    _      :>> x -> pathVars x
-    x      :|| y -> pathVars x ++ pathVars y
-    _            -> []
+    Push v :>> x  -> v : pathVars x
+    Pop  v :>> x  -> v : pathVars x
+    _      :>> x  -> pathVars x
+    Branch () x y -> pathVars x ++ pathVars y
+    _             -> []
 
 -- | For variable foo, make the declaration @\"struct value *var_foo = NULL;@\"
 vardecl :: String -> Doc
@@ -114,12 +114,12 @@ exitWith s = vcat
   , text "exit(0);" ]
 
 -- | Generates statements for a single basic block.
-block :: Path (Posn, Direction) Result Command -> Doc
+block :: Path (Posn, Direction) () Result Command -> Doc
 block g = case g of
   -- Node: call command function
   v :>> x -> command v $$ block x
   -- Branch: if statement
-  x :|| y -> vcat
+  Branch () x y -> vcat
     [ text "if (pop_bool()) {"
     , nest 2 $ block y
     , text "} else {"

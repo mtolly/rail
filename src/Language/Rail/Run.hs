@@ -18,7 +18,7 @@ import Data.Void (absurd)
 data Memory = Memory
   { stack     :: [Val]
   , variables :: Map.Map String Val
-  , functions :: Map.Map String (Flow Result Command)
+  , functions :: Map.Map String (Flow () Result Command)
   }
 
 emptyMemory :: Memory
@@ -140,18 +140,18 @@ math :: (Integer -> Integer -> Integer) -> Rail ()
 math op = liftA2 (flip op) popInt popInt >>= push . Str . show
 
 -- | Runs a piece of code. Does not create a new scope.
-run :: Flow Result Command -> Rail ()
+run :: Flow () Result Command -> Rail ()
 run g = case g of
-  x :>> c -> runCommand x >> run c
-  x :|| y -> popBool >>= \b -> run $ if b then y else x
-  Continue c -> absurd c
-  End e -> case e of
+  x :>> c       -> runCommand x >> run c
+  Branch () x y -> popBool >>= \b -> run $ if b then y else x
+  Continue c    -> absurd c
+  End e         -> case e of
     Return -> return ()
     Boom -> popStr >>= err
     Internal s -> err s
 
 -- | Runs a function, which creates a new scope for the length of the function.
-call :: Flow Result Command -> Rail ()
+call :: Flow () Result Command -> Rail ()
 call sub = gets variables >>= \vs ->
   setVariables Map.empty >> run sub >> setVariables vs
 
