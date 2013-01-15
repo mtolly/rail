@@ -1,3 +1,4 @@
+-- | Functions for working with two-dimensional blocks of text.
 module Text.Block where
 
 data Block = Block

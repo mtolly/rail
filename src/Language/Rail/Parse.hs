@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveDataTypeable #-}
 module Language.Rail.Parse where
 
 import Language.Rail.Base
@@ -9,8 +10,15 @@ import Data.Char (isDigit)
 import Data.Maybe (mapMaybe)
 import qualified Data.Map as Map
 import Control.Monad.Trans.State
+import Data.Data (Data, Typeable)
 
 type Grid = UArray Posn Char
+
+-- | A grid position in (row, column) format.
+type Posn = (Int, Int)
+
+data Direction = N | NE | E | SE | S | SW | W | NW
+  deriving (Eq, Ord, Show, Read, Enum, Bounded, Data, Typeable)
 
 char :: Grid -> Posn -> Char
 char g p = if inRange (bounds g) p then g ! p else ' '
@@ -188,19 +196,20 @@ clockwise n = toEnum . (`mod` 8) . (+ n) . fromEnum
 -- train's new direction.
 tryPrimary :: Direction -> Char -> Maybe Direction
 tryPrimary d c = lookup d $ case c of
-  ' '  -> [] -- space is the only char which can't be a primary connection
-  '-'  -> zip [E, NE, SE, W, NW, SW] [E, E, E, W, W, W]
-  '|'  -> zip [N, NE, NW, S, SE, SW] [N, N, N, S, S, S]
+  '-'  -> zip [E, NE, SE, W, NW, SW] [E,  E,  E,  W,  W,  W]
+  '|'  -> zip [N, NE, NW, S, SE, SW] [N,  N,  N,  S,  S,  S]
   '/'  -> zip [N, E,  NE, S, W,  SW] [NE, NE, NE, SW, SW, SW]
   '\\' -> zip [N, W,  NW, S, E,  SE] [NW, NW, NW, SE, SE, SE]
+  '@'  -> let dirs = [minBound .. maxBound] in zip dirs $ map (clockwise 4) dirs
   '+'  -> let dirs = [N,  S,  E,  W]  in zip dirs dirs
   'x'  -> let dirs = [NW, NE, SW, SE] in zip dirs dirs
-  '@'  -> let dirs = [minBound..maxBound] in zip dirs $ map (clockwise 4) dirs
   'v'  -> let dirs = [N, SE, SW] in zip dirs dirs
   '^'  -> let dirs = [S, NW, NE] in zip dirs dirs
   '>'  -> let dirs = [W, SE, NE] in zip dirs dirs
   '<'  -> let dirs = [E, NW, SW] in zip dirs dirs
-  _ -> [(d, d)] -- anything else is a universal junction
+  _    -> if elem c "*beiou?[](){}admrs0123456789cpzn:~fgqt#"
+    then [(d, d)] -- universal junction
+    else []       -- rubble
 
 -- | If the char can be entered indirectly by a train which is facing the given
 -- direction, returns the train's new direction.

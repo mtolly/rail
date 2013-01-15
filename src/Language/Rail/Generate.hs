@@ -55,6 +55,7 @@ command c = case c of
   Greater -> "g"
   Equal -> "q"
 
+-- | The minimum width needed to encode the given path.
 pathWidth :: Path c Result Command -> Int
 pathWidth g = case g of
   End e      -> length $ end e
@@ -62,22 +63,25 @@ pathWidth g = case g of
   x :|| y    -> 5 + max (pathWidth x) (pathWidth y)
   x :>> xs   -> length (command x) + pathWidth xs
 
+-- | The minimum width needed to encode all the paths inside the system.
 systemWidth :: System c Result Command -> Int
 systemWidth (System st ps) = maximum $ map pathWidth $ st : Map.elems ps
 
-paths :: Path c Result Command -> Int
-paths g = case g of
-  x :|| y  -> paths x + paths y
-  _ :>> xs -> paths xs
+-- | The number of leaf nodes in a path's tree, equal to the number of branches
+-- plus 1.
+leaves :: Path c Result Command -> Int
+leaves g = case g of
+  x :|| y  -> leaves x + leaves y
+  _ :>> xs -> leaves xs
   _        -> 1
 
 {-
 
 Here is the kind of Rail code we will generate:
 
-$  .'function'   .
+$  'function'
  \
-. -[starting path]-\
+  -[starting path]-\
                    |
  /-[next path]-----+-\
  |                 | |
@@ -87,11 +91,15 @@ $  .'function'   .
  |  -<               |
  |    \-[end]#       +
  |                   |
-.\-------------------/
+ \-------------------/
 
-The dots on the first line mark the first and last columns of instructions.
+This block will be generated in 4 subblocks:
+* the left edge chunk: the first 3 columns
+* the function name chunk: the first 2 rows except the first 3 columns
+* the command chunk: in the code above, everything from [starting path] down
+* the route chunk: everything to the right of the command chunk
+
 The branch near the bottom takes up 5 columns, "\  /-" on the first line.
-
 If the top branch splits into more branches, the branch can be extended like so:
 
  \  /-[top]-
@@ -108,11 +116,12 @@ branch 1 = text $ unlines ["\\  /-", " -<", "   \\-"]
 branch n = text $ unlines $
   ["\\  /-", " -<", "   \\"] ++ replicate ((n - 1) * 2 - 1) "   |" ++ ["   \\-"]
 
+-- | Generates the code for a path or subpath, to be read travelling east.
 pathBlock :: Int -> Path c Result Command -> Block
 pathBlock w p = case p of
   x :>> p' -> let b = line $ command x in horiz b $ pathBlock (w - width b) p'
   x :|| y -> let
-    b = branch $ paths x
+    b = branch $ leaves x
     w' = w - width b
     in horiz b $ vert (pathBlock w' x) $ vert (line "") $ pathBlock w' y
   End e -> line $ end e
@@ -141,7 +150,7 @@ leftChunk sys = let
     , blank ]
     ++ concat [ [line " /-"] ++ replicate pipes (line " | ") ++ [line " \\-"]
               | p <- Map.elems $ systemPaths sys
-              , let pipes = paths p * 2 - 1 ]
+              , let pipes = leaves p * 2 - 1 ]
 
 routeChunk :: System Int Result Command -> Block
 routeChunk _ = empty

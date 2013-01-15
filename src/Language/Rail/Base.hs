@@ -38,9 +38,3 @@ data Result
   | Boom
   | Internal String
   deriving (Eq, Ord, Show, Read)
-
--- | A grid position in (row, column) format.
-type Posn = (Int, Int)
-
-data Direction = N | NE | E | SE | S | SW | W | NW
-  deriving (Eq, Ord, Show, Read, Enum, Bounded, Data, Typeable)

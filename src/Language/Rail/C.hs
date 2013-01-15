@@ -9,6 +9,7 @@ import qualified Data.Map as Map
 import Data.List (nub, intersperse)
 import Text.PrettyPrint.HughesPJ (Doc, text, hcat, vcat, render, nest, ($$))
 import Numeric (showHex)
+import Language.Rail.Parse (Posn, Direction)
 
 -- | The definitions of all the built-in functions and memory operations.
 header :: IO String
