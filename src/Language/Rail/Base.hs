@@ -37,4 +37,4 @@ data Result
   = Return
   | Boom
   | Internal String
-  deriving (Eq, Ord, Show, Read)
+  deriving (Eq, Ord, Show, Read, Data, Typeable)

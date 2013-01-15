@@ -148,12 +148,45 @@ leftChunk sys = let
     , line " \\ "
     , line "  -"
     , blank ]
-    ++ concat [ [line " /-"] ++ replicate pipes (line " | ") ++ [line " \\-"]
+    ++ concat [ [line " /-"] ++ replicate n (line " | ") ++ [line " \\-", blank]
               | p <- Map.elems $ systemPaths sys
-              , let pipes = leaves p * 2 - 1 ]
+              , let n = leaves p * 2 - 1 ]
+
+----
 
 routeChunk :: System Int () Result Command -> Block
-routeChunk _ = empty
+routeChunk _ = undefined
+
+type Row    = Int -- ^ starts from 0 at the top of the route/command chunks
+type Column = Int -- ^ starts from 0 at the left of the route chunk
+type Bridge = (Row, Row, Column)
+
+-- | Returns the row of a Continue leaf node, given its parent path ID, and a
+-- number for which leaf node it is within the path (the topmost is 0).
+exitRow :: Int -> Int -> System Int () Result Command -> Row
+exitRow parent n sys = entranceRow (parent - 1) sys + 2 * n
+
+-- | Returns the row needed to enter the given path.
+entranceRow :: Int -> System Int () Result Command -> Row
+entranceRow n sys = let
+  paths = take (n + 1) $ Map.elems $ systemPaths sys
+  in sum [ 2 * leaves p + 2 | p <- paths ]
+
+-- | Returns only the bridges which overlap the given source and destination.
+overlapping :: Row -> Row -> [Bridge] -> [Bridge]
+overlapping sr dr = filter $ \(sr', dr', _) ->
+  any (\x -> compare sr' x /= compare dr' x) [sr, dr]
+
+-- | Adds a bridge between the two rows at the lowest possible odd column.
+newBridge :: Row -> Row -> [Bridge] -> Bridge
+newBridge sr dr bs = let
+  overCols = [ c | (_, _, c) <- overlapping sr dr bs ]
+  in (sr, dr, head [ c | c <- [1, 3 ..], notElem c overCols ])
+
+drawBridges :: [Bridge] -> Block
+drawBridges = undefined
+
+----
 
 functionBlock :: (Eq c) => String -> System c () Result Command -> Block
 functionBlock name sys = let
