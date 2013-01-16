@@ -5,6 +5,8 @@ import Data.ControlFlow
 import Data.Char (isDigit)
 import qualified Data.Map as Map
 import Text.Block
+import Control.Monad.Trans.State
+import Control.Monad (forM_)
 
 -- | A string literal, to be read travelling east.
 strLit :: String -> String
@@ -155,7 +157,27 @@ leftChunk sys = let
 ----
 
 routeChunk :: System Int () Result Command -> Block
-routeChunk _ = undefined
+routeChunk sys = let
+  setRow :: Row -> State (Row, [Bridge]) ()
+  setRow r = modify $ \(_, bs) -> (r, bs)
+  addBridge :: Bridge -> State (Row, [Bridge]) ()
+  addBridge b = modify $ \(r, bs) -> (r, b : bs)
+  go :: Path Int () Result Command -> State (Row, [Bridge]) ()
+  go path = case path of
+    _ :>> path'   -> go path'
+    Branch () x y -> go x >> go y
+    Continue c    -> do
+      (r, bs) <- get
+      addBridge $ newBridge r (entranceRow c sys) bs
+      setRow $ r + 2
+    End _         -> modify $ \(r, bs) -> (r + 2, bs)
+  goTop n path = setRow (exitRow n 0 sys) >> go path
+  goStart path = setRow 0 >> go path
+  bridges = snd $ execState f (0, [])
+  f = do
+    goStart $ systemStart sys
+    forM_ (Map.toList $ systemPaths sys) $ uncurry goTop
+  in drawBridges bridges
 
 type Row    = Int -- ^ starts from 0 at the top of the route/command chunks
 type Column = Int -- ^ starts from 0 at the left of the route chunk
@@ -177,7 +199,7 @@ overlapping :: Row -> Row -> [Bridge] -> [Bridge]
 overlapping sr dr = filter $ \(sr', dr', _) ->
   any (\x -> compare sr' x /= compare dr' x) [sr, dr]
 
--- | Adds a bridge between the two rows at the lowest possible odd column.
+-- | Makes a bridge between the two rows at the lowest possible odd column.
 newBridge :: Row -> Row -> [Bridge] -> Bridge
 newBridge sr dr bs = let
   overCols = [ c | (_, _, c) <- overlapping sr dr bs ]

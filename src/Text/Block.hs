@@ -59,3 +59,9 @@ vert x y = let w = max (width x) (width y) in Block
 -- | Sets the length of a list, possibly adding a filler element at the end.
 setLength :: Int -> a -> [a] -> [a]
 setLength n c s = take n $ s ++ repeat c
+
+charAt :: (Int, Int) -> Block -> Char
+charAt (r, c) = (!! c) . (!! r) . blockLines
+
+setChar :: (Int, Int) -> Char -> Block -> Block
+setChar = undefined
