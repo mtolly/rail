@@ -15,4 +15,4 @@ main = getArgs >>= \argv -> case argv of
     writeFile fout sout
   _ -> mapM_ (hPutStrLn stderr)
     [ "usage: hrail file-in.rail            (directly interpret)"
-    , "       hrail file-in.rail file.out.c (generate C code)" ]
+    , "       hrail file-in.rail file-out.c (generate C code)" ]

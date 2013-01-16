@@ -4,12 +4,12 @@ module Language.Rail.C where
 import Data.ControlFlow
 import Language.Rail.Base
 import Paths_rail (getDataFileName)
-import Data.Char (toLower, isAscii, isAlphaNum, isPrint)
+import Data.Char (toLower, isAscii, isAlphaNum)
 import qualified Data.Map as Map
 import Data.List (nub, intersperse)
 import Text.PrettyPrint.HughesPJ (Doc, text, hcat, vcat, render, nest, ($$))
-import Numeric (showHex)
 import Language.Rail.Parse (Posn, Direction)
+import Language.C.Syntax.Constants (showStringLit)
 
 -- | The definitions of all the built-in functions and memory operations.
 header :: IO String
@@ -43,16 +43,7 @@ makeLabel ((r, c), d) = show d ++ "_" ++ show r ++ "_" ++ show c
 
 -- | Produces a C99 string literal.
 stringLit :: String -> String
-stringLit s = "\"" ++ concatMap f s ++ "\"" where
-  f '"' = "\\\""
-  f c | elem c "\\\a\b\f\n\r\t\v" = take 2 $ drop 1 $ show c
-      | isAscii c && isPrint c      = [c]
-      | otherwise                   = let
-        hex = showHex (fromEnum c) ""
-        in case length hex of
-          len | len <= 4  -> "\\u" ++ replicate (4 - len) '0' ++ hex
-              | len <= 8  -> "\\U" ++ replicate (8 - len) '0' ++ hex
-              | otherwise -> error "stringLit: char out of range"
+stringLit s = showStringLit s ""
 
 makeCFile :: [(String, System (Posn, Direction) () Result Command)] -> IO String
 makeCFile pairs = do

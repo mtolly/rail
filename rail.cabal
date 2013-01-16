@@ -19,7 +19,7 @@ Data-Files:         header.c
 
 Library
   Build-Depends:    base == 4.*, containers, transformers, array, split, void,
-                    pretty
+                    pretty, language-c
   Exposed-Modules:  Data.ControlFlow
                     Language.Rail.Base
                     Language.Rail.Parse

@@ -47,8 +47,13 @@ readConstant pnchs endc = go "" pnchs where
   go str ((_, '\\') : (_, '\\') : pcs) =
     go ('\\' : str) pcs
   go str ((_, '\\') : (_, c) : (_, '\\') : pcs) = case c of
-    'n' -> go ('\n' : str) pcs
+    'a' -> go ('\a' : str) pcs
+    'b' -> go ('\b' : str) pcs
     't' -> go ('\t' : str) pcs
+    'n' -> go ('\n' : str) pcs
+    'v' -> go ('\v' : str) pcs
+    'f' -> go ('\f' : str) pcs
+    'r' -> go ('\r' : str) pcs
     _ -> go (c : str) pcs
   go str ((p, c) : pcs) = if c == endc
     then Just (reverse str, p)

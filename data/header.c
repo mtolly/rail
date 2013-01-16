@@ -39,7 +39,6 @@ struct stack_node {
 
 struct stack_node *stack = NULL;
 int stack_size = 0;
-int condition = 0;
 
 void malloc_error() {
   fprintf(stderr, "Couldn't allocate memory\n");
