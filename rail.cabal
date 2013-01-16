@@ -25,7 +25,6 @@ Library
                     Language.Rail.Parse
                     Language.Rail.Run
                     Language.Rail.C
-                    Language.Rail.Generate
                     Text.Block
   Other-Modules:    Paths_rail
   hs-source-dirs:   src
