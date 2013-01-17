@@ -126,7 +126,7 @@ runCommand c = case c of
     s <- popStr
     if 0 <= i && i <= length s
       then case splitAt i s of
-        (x, y) -> push (Str y) >> push (Str x)
+        (x, y) -> push (Str x) >> push (Str y)
       else err "cut: string index out of bounds"
   Push var -> getVar var >>= push
   Pop var -> pop >>= setVar var

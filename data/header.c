@@ -342,8 +342,8 @@ void builtin_cut() {
   a[len0] = '\0';
   strncpy(b, s + len0, len1);
   b[len1] = '\0';
-  push(new_str(b));
   push(new_str(a));
+  push(new_str(b));
   collect(v);
 }
 
