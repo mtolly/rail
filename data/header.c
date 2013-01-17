@@ -157,6 +157,7 @@ struct value *pop() {
   struct value *v = node->value;
   free(node);
   remove_reference(v);
+  stack_size--;
   return v;
 }
 
@@ -341,8 +342,8 @@ void builtin_cut() {
   a[len0] = '\0';
   strncpy(b, s + len0, len1);
   b[len1] = '\0';
-  push(new_str(a));
   push(new_str(b));
+  push(new_str(a));
   collect(v);
 }
 
