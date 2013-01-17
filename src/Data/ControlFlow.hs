@@ -83,7 +83,7 @@ unroll cfrom gto = go where
     _                       -> g
 
 mapPaths
-  :: (Path c b e a -> Path c b e' a') -> System c b e a -> System c b e' a'
+  :: (Path c b e a -> Path c b' e' a') -> System c b e a -> System c b' e' a'
 mapPaths f sys = System
   { systemStart = f $ systemStart sys
   , systemPaths = fmap f $ systemPaths sys }
@@ -140,3 +140,8 @@ numberPaths (System st ps) = let
   in System
     { systemStart = mapContinue contToInt st
     , systemPaths = Map.mapKeys contToInt $ fmap (mapContinue contToInt) ps }
+
+cleanContinues :: (Ord c) => System c b e a -> System c b e a
+cleanContinues sys = let
+  toClean = [ c | (c, Continue c') <- Map.toList $ systemPaths sys, c /= c' ]
+  in foldr unrollSystem sys toClean

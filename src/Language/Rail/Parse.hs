@@ -239,7 +239,8 @@ makeSystem g = let
       let act = action g pd
       modify $ Map.insert pd act
       mapM_ startFrom $ continues act
-  in simplifyPaths $ System (Continue dlr) $ execState (startFrom dlr) Map.empty
+  in cleanContinues $ simplifyPaths $
+    System (Continue dlr) $ execState (startFrom dlr) Map.empty
 
 -- | Extracts the function name from the text of a single function.
 functionName :: String -> Maybe String
