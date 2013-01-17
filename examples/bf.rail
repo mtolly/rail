@@ -1,0 +1,87 @@
+Brainfuck interpreter in Rail, by Michael Tolly.
+Takes stdin in the form of "program|input".
+$ 'main'
+ -{read program}{main loop}#
+
+reads a string terminated by a pipe '|' character
+$ 'read program'
+ \                           /-(char)p-\
+  -[]--i(!char!)-(char)[|]q-<          |
+     /                       \-#       |
+     |                                 |
+     \---------------------------------/
+
+initialize memory, then pop chars off the program string and execute them
+$ 'main loop'
+ \
+  -n(!left!)-0(!cell!)-n(!right!)-\
+                                  |
+   /------------------------------/
+   |
+   \              /-#
+ /---{dup}z0q{~}-<
+ |                \-0c{swap}(!ch!)-\
+ |                                 |
+ | /-------------------------------/
+ | |
+ | |                          /-[TODO]b
+ | |              /-(ch)[,]q-<
+ | |             /            \-i{ord}[256]r(!cell!)-\
+ | | /-(ch)[.]q-<                                    |
+ | | |           \-(cell){chr}o-\       /------------/------------------------------------------------------------------------------\
+ | | |                          |       |                                                                                           |
+ | | \--------------------------+-------+--------------\                                                                            |
+ | |                            |       |              |                                                                            |
+ \-+----------------------------/-------/              /                                                                            |
+ | |                                       /-(ch)[<]q-<                                                   /-(left)~(!cell!)(!left!)-/
+ | |                                      /            \-(right)(cell):(!right!)-(left)nq----------------<                          |
+ | |                                     /                                                                \                         |
+ | |                         /-(ch)[>]q-<                                   /-(right)~(!cell!)(!right!)-\  \-0(!cell!)--------------/
+ | |                        /            \-(left)(cell):(!left!)-(right)nq-<                            |
+ | |            /-(ch)[-]q-<                                                \-0(!cell!)-\ /-------------/
+ | |           /            \-(cell)1s[256]r(!cell!)-\                                   |
+ | \-(ch)[+]q-<                                      |                                   |
+ |             \-(cell)1a[256]r(!cell!)-\            |                                   |
+ |                                      |            |                                   |
+ \--------------------------------------/------------/-----------------------------------/
+
+utility functions:
+
+$ 'dup'
+ -(!x!)(x)(x)#
+
+$ 'swap'
+ -(!x!)(!y!)(x)(y)#
+
+$ 'drop'
+ -(!x!)#
+
+$ '~'
+ \
+  \  /-t#
+   -<
+     \-f#
+
+a 126-char long string, from ascii char 1 (SOH) to 126 (~)
+$ 'ascii'
+ \
+  -[\t\\n\\r\ !"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ\[\\\\]\^_`abcdefghijklmnopqrstuvwxyz{|}~]#
+
+replaces a number with its ASCII character
+$ 'chr'
+ \                                    /-1c{swap}{drop}-(n)1s(!n!)-\
+  \                          /-(n)1q-<                            |
+   -(!n!)-{ascii}--{dup}z0q-<         \-1c{drop}-#                |
+                 /           \                                    |
+                 |            \-[chr: out of range]b              |
+                 |                                                |
+                 \------------------------------------------------/
+
+replaces an ASCII character with its codepoint
+$ 'ord'                                              /-(n)1a(!n!)-\
+ \                                 /-1c{swap}-(ch)q-<             |
+  -1(!n!)-(!ch!){ascii}--{dup}z0q-<                  \-{drop}(n)# |
+                       /           \                              |
+                       |            \-[ord: out of range]b        |
+                       |                                          |
+                       \------------------------------------------/
