@@ -6,7 +6,9 @@ import Data.Char (isDigit)
 import qualified Data.Map as Map
 import Text.Block
 import Control.Monad.Trans.State
-import Control.Monad (forM_)
+import Control.Monad (forM, forM_)
+import Data.Array.ST
+import Control.Monad.ST
 
 -- | A string literal, to be read travelling east.
 strLit :: String -> String
@@ -186,7 +188,7 @@ type Bridge = (Row, Row, Column)
 -- | Returns the row of a Continue leaf node, given its parent path ID, and a
 -- number for which leaf node it is within the path (the topmost is 0).
 exitRow :: Int -> Int -> System Int () Result Command -> Row
-exitRow parent n sys = entranceRow (parent - 1) sys + 2 * n
+exitRow parent n sys = entranceRow (parent - 1) sys + 2 * (n + 1)
 
 -- | Returns the row needed to enter the given path.
 entranceRow :: Int -> System Int () Result Command -> Row
@@ -206,7 +208,39 @@ newBridge sr dr bs = let
   in (sr, dr, head [ c | c <- [1, 3 ..], notElem c overCols ])
 
 drawBridges :: [Bridge] -> Block
-drawBridges = undefined
+drawBridges [] = empty
+drawBridges bs = runST $ do
+  let maxRow = maximum [ r | (sr, dr, _) <- bs, r <- [sr, dr] ]
+      maxCol = maximum [ c | (_, _, c) <- bs ]
+  ary <- newArray ((0, 0), (maxRow, maxCol)) ' '
+  forM_ bs $ \b -> drawBridge b ary
+  arrayBlock ary
+
+drawBridge :: Bridge -> STArray s (Int, Int) Char -> ST s ()
+drawBridge (sr, dr, col) ary = do
+  forM_ [0 .. col - 1] $ \c -> let
+    ch = if odd c then '+' else '-'
+    in writeArray ary (sr, c) ch >> writeArray ary (dr, c) ch
+  if sr < dr
+    then do
+      writeArray ary (sr, col) '\\'
+      writeArray ary (dr, col) '/'
+      forM_ [sr + 1 .. dr - 1] $ \r -> let
+        ch = if even r then '+' else '|'
+        in writeArray ary (r, col) ch
+    else do
+      writeArray ary (dr, col) '\\'
+      writeArray ary (sr, col) '/'
+      forM_ [dr + 1 .. sr - 1] $ \r -> let
+        ch = if even r then '+' else '|'
+        in writeArray ary (r, col) ch
+
+arrayBlock :: STArray s (Int, Int) Char -> ST s Block
+arrayBlock ary = do
+  ((r0, c0), (r1, c1)) <- getBounds ary
+  let arrayLine r cf ct = forM [cf .. ct] $ \c -> readArray ary (r, c)
+  ls <- forM [r0 .. r1] $ \r -> arrayLine r c0 c1
+  return $ Block ls (c1 - c0 + 1) (r1 - r0 + 1)
 
 ----
 
