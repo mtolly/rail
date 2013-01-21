@@ -11,8 +11,7 @@ main = getArgs >>= \argv -> case argv of
   [fin] -> readFile fin >>= runMemory . compile
   [fin, fout] -> do
     s <- readFile fin
-    sout <- makeCFile $ getFunctions s
-    writeFile fout sout
+    writeFile fout $ makeFile $ getFunctions s
   _ -> mapM_ (hPutStrLn stderr)
     [ "usage: hrail file-in.rail            (directly interpret)"
     , "       hrail file-in.rail file-out.c (generate C code)" ]

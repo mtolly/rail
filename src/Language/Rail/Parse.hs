@@ -1,5 +1,14 @@
 {-# LANGUAGE DeriveDataTypeable #-}
-module Language.Rail.Parse where
+module Language.Rail.Parse
+( Grid
+, Posn
+, Direction
+, makeGrid
+, makeSystem
+, functionName
+, splitFunctions
+, getFunctions
+) where
 
 import Language.Rail.Base
 import Data.ControlFlow

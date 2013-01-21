@@ -1,5 +1,10 @@
 -- | A Rail to C compiler. Generates a single file of C99-compliant code.
-module Language.Rail.C where
+module Language.Rail.C
+( mangle
+, makeLabel
+, makeFile
+, makeFunction
+) where
 
 import Data.ControlFlow
 import Language.Rail.Base
@@ -10,10 +15,11 @@ import Data.List (nub, intersperse)
 import Text.PrettyPrint.HughesPJ (Doc, text, hcat, vcat, render, nest, ($$))
 import Language.Rail.Parse (Posn, Direction)
 import Language.C.Syntax.Constants (showStringLit)
+import System.IO.Unsafe (unsafePerformIO)
 
 -- | The definitions of all the built-in functions and memory operations.
-header :: IO String
-header = getDataFileName "header.c" >>= readFile
+header :: String
+header = unsafePerformIO $ getDataFileName "header.c" >>= readFile
 
 -- | The main function, which simply calls @fun_main()@ (the Rail @main@
 -- function).
@@ -45,11 +51,8 @@ makeLabel ((r, c), d) = show d ++ "_" ++ show r ++ "_" ++ show c
 stringLit :: String -> String
 stringLit s = showStringLit s ""
 
-makeCFile :: [(String, System (Posn, Direction) () Result Command)] -> IO String
-makeCFile pairs = do
-  h <- header
-  let funs = render $ makeProgram pairs
-  return $ h ++ funs ++ footer
+makeFile :: [(String, System (Posn, Direction) () Result Command)] -> String
+makeFile pairs = header ++ (render $ makeProgram pairs) ++ footer
 
 makeProgram :: [(String, System (Posn, Direction) () Result Command)] -> Doc
 makeProgram pairs = let

@@ -1,5 +1,9 @@
 {-# LANGUAGE DeriveDataTypeable #-}
-module Language.Rail.Base where
+module Language.Rail.Base
+( Command(..)
+, Val(..)
+, Result(..)
+) where
 
 import Data.Data (Data, Typeable)
 

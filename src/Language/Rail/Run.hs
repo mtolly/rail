@@ -1,5 +1,15 @@
 -- | A direct interpreter for Rail programs.
-module Language.Rail.Run where
+module Language.Rail.Run
+( Memory(..)
+, emptyMemory
+, Rail
+, runRail
+, runCommand
+, run
+, call
+, compile
+, runMemory
+) where
 
 import Data.ControlFlow
 import Language.Rail.Base

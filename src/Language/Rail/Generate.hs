@@ -1,4 +1,13 @@
-module Language.Rail.Generate where
+-- | Generate Rail code from a control flow graph representation.
+module Language.Rail.Generate
+( stringLiteral
+, literal
+, result
+, command
+, function
+, program
+, toFile
+) where
 
 import Language.Rail.Base
 import Data.ControlFlow
@@ -11,9 +20,9 @@ import Data.Array.ST
 import Control.Monad.ST
 
 -- | A string literal, to be read travelling east.
-strLit :: String -> String
-strLit s@[c] | isDigit c = s
-strLit s = "[" ++ concatMap f s ++ "]" where
+stringLiteral :: String -> String
+stringLiteral s@[c] | isDigit c = s
+stringLiteral s = "[" ++ concatMap f s ++ "]" where
   f c = case c of
     '\\' -> "\\\\"
     '\n' -> "\\n\\"
@@ -24,15 +33,15 @@ strLit s = "[" ++ concatMap f s ++ "]" where
 
 -- | A literal value, to be read travelling east.
 literal :: Val -> String
-literal (Str s) = strLit s
+literal (Str s) = stringLiteral s
 literal Nil = "n"
 literal (Pair x y) = literal x ++ literal y ++ ":"
 
 -- | A (successful or not) function ending, to be read travelling east.
-end :: Result -> String
-end Return       = "#"
-end Boom         = "b"
-end (Internal s) = strLit s ++ "b"
+result :: Result -> String
+result Return       = "#"
+result Boom         = "b"
+result (Internal s) = stringLiteral s ++ "b"
 
 -- | A non-end instruction, to be read travelling east.
 command :: Command -> String
@@ -62,7 +71,7 @@ command c = case c of
 -- | The minimum width needed to encode the given path.
 pathWidth :: Path c () Result Command -> Int
 pathWidth g = case g of
-  End e         -> length $ end e
+  End e         -> length $ result e
   Continue _    -> 0
   Branch () x y -> 5 + max (pathWidth x) (pathWidth y)
   x :>> xs      -> length (command x) + pathWidth xs
@@ -128,7 +137,7 @@ pathBlock w p = case p of
     b = branch $ leaves x
     w' = w - width b
     in horiz b $ vert (pathBlock w' x) $ vert (line "") $ pathBlock w' y
-  End e -> line $ end e
+  End e -> line $ result e
   Continue _ -> line $ replicate w '-'
 
 nameChunk :: String -> Block
@@ -251,3 +260,12 @@ functionBlock name sys = let
     vert (nameChunk name) $
       horiz (commandChunk (systemWidth sys) sys') $
         routeChunk sys'
+
+function :: (Eq c) => String -> System c () Result Command -> String
+function name sys = show $ functionBlock name sys
+
+program :: (Eq c) => [(String, System c () Result Command)] -> String
+program = concatMap $ uncurry function
+
+toFile :: (Eq c) => FilePath -> [(String, System c () Result Command)] -> IO ()
+toFile fp = writeFile fp . program
