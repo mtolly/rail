@@ -21,7 +21,7 @@ import Control.Monad.Trans.State
 import Control.Monad.Trans.Error
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.IO.Class (liftIO)
-import System.IO (isEOF)
+import System.IO (isEOF, hPutStr, stderr)
 import System.IO.Error (catchIOError, isEOFError)
 import Data.Void (absurd)
 
@@ -43,7 +43,7 @@ emptyMemory = Memory
 type Rail = StateT Memory (ErrorT String IO)
 
 runRail :: Rail () -> Memory -> IO ()
-runRail r mem = runErrorT (evalStateT r mem) >>= either putStr return
+runRail r mem = runErrorT (evalStateT r mem) >>= either (hPutStr stderr) return
 
 err :: String -> Rail a
 err = lift . throwError
