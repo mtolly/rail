@@ -115,7 +115,7 @@ runCommand c = case c of
   Mult -> math (*)
   Div -> math div
   Rem -> math mod
-  EOF -> liftIO isEOF >>= \b -> push $ Str $ if b then "1" else "0"
+  EOF -> liftIO isEOF >>= pushBool
   Output -> popStr >>= liftIO . putStr
   Input -> liftIO getChar' >>= \mc -> case mc of
     Just ch -> push $ Str [ch]
