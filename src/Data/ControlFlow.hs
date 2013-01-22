@@ -7,7 +7,20 @@
 -- constructed separately, with arbitrary IDs attached to each one; you can
 -- then generate a single circular structure for the entire graph, taking up
 -- a finite amount of space.
-module Data.ControlFlow where
+module Data.ControlFlow
+( Path(..)
+, Flow
+, System(..)
+, usedPaths
+, cleanPaths
+, mapPaths
+, simplifyPaths
+, flow
+, mapContinues
+, numberPaths
+, cleanContinues
+, continues
+) where
 
 import Data.Void (Void)
 import Data.Maybe (fromMaybe)
@@ -64,7 +77,8 @@ cleanPaths sys = let
     [(k, undefined) | k <- Set.toAscList $ usedPaths sys]
   in sys { systemPaths = systemPaths sys `Map.intersection` used }
 
--- | The list of all labels directly continued to by the given path.
+-- | The list of all labels directly continued to by the given path. May contain
+-- duplicates, if there are two continues to the same label.
 continues :: (Ord c) => Path c b e a -> [c]
 continues g = case g of
   _ :>> x      -> continues x
@@ -125,11 +139,11 @@ flow sys = let
     End e        -> End e
   in toFlow $ systemStart sys
 
-mapContinue :: (c -> c') -> Path c b e a -> Path c' b e a
-mapContinue f g = case g of
-  Continue c -> Continue $ f c
-  x :>> xs     -> x :>> mapContinue f xs
-  Branch b x y -> Branch b (mapContinue f x) (mapContinue f y)
+mapContinues :: (c -> c') -> Path c b e a -> Path c' b e a
+mapContinues f g = case g of
+  Continue c   -> Continue $ f c
+  x :>> xs     -> x :>> mapContinues f xs
+  Branch b x y -> Branch b (mapContinues f x) (mapContinues f y)
   End e        -> End e
 
 -- | Replaces continuation labels with numbers starting from 0.
@@ -138,8 +152,8 @@ numberPaths (System st ps) = let
   contToInt c = fromMaybe err $ lookup c $ zip (Map.keys ps) [0..]
   err = error "numberPaths: missing continue"
   in System
-    { systemStart = mapContinue contToInt st
-    , systemPaths = Map.mapKeys contToInt $ fmap (mapContinue contToInt) ps }
+    { systemStart = mapContinues contToInt st
+    , systemPaths = Map.mapKeys contToInt $ fmap (mapContinues contToInt) ps }
 
 cleanContinues :: (Ord c) => System c b e a -> System c b e a
 cleanContinues sys = let
