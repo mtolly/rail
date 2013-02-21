@@ -27,6 +27,7 @@ Library
                     Language.Rail.Run
                     Language.Rail.C
                     Language.Rail.Generate
+                    Language.Rail.Expression
                     
   Other-Modules:    Paths_rail
                     Text.Block
