@@ -37,6 +37,8 @@ data Expr a where
   EqualStr :: Expr String -> Expr String -> Expr Bool
   EqualInt :: Expr Integer -> Expr Integer -> Expr Bool
   EqualBool :: Expr Bool -> Expr Bool -> Expr Bool
+  Type :: Expr Val -> Expr String
+  EOF :: Expr Bool
   TypeError :: String -> String -> Expr a
   -- ^ Params are expected and actual types of a subexpression
 
@@ -70,6 +72,8 @@ render e cont = case e of
   EqualStr x y -> render x $ render y $ R.Equal :>> cont
   EqualInt x y -> render x $ render y $ R.Equal :>> cont
   EqualBool x y -> render x $ render y $ R.Equal :>> cont
+  Type x -> render x $ R.Type :>> cont
+  EOF -> R.EOF :>> cont
   TypeError ex act -> End $ R.Internal $
     "Type error in expression: expected " ++ ex ++ ", got " ++ act
 
@@ -151,6 +155,13 @@ simplify e = case e of
   EqualBool x y -> case (simplify x, simplify y) of
     (Bool a, Bool b) -> Bool $ a == b
     (sx, sy) -> if sx == sy then Bool True else EqualBool sx sy
+  Type x -> case simplify x of
+    Val v -> Str $ case v of
+      R.Str _ -> "string"
+      R.Nil -> "nil"
+      R.Pair _ _ -> "list"
+    PutStr _ -> Str "string"
+    sx -> Type sx
   _ -> e
 
 -- | Equivalent to 'read', except it returns Nothing on read error.
