@@ -1,4 +1,4 @@
-{-# LANGUAGE GADTs #-}
+{-# LANGUAGE GADTs, StandaloneDeriving #-}
 -- | Optimize Rail functions so sequences of stack operations are replaced with
 -- expressions, which can translate directly to high-level language expressions.
 module Language.Rail.Expression where
@@ -14,8 +14,8 @@ import Data.List (genericLength)
 -- the time of evaluation; its only change to the stack is to place its single
 -- return value on top.
 data Expr a where
-  Int :: Integer -> Expr Integer
   Str :: String -> Expr String
+  Int :: Integer -> Expr Integer
   Bool :: Bool -> Expr Bool
   Val :: Val -> Expr Val
   Var :: String -> Expr Val
@@ -33,8 +33,15 @@ data Expr a where
   Append :: Expr String -> Expr String -> Expr String
   Size :: Expr String -> Expr Integer
   Greater :: Expr Integer -> Expr Integer -> Expr Bool
+  Equal :: Expr Val -> Expr Val -> Expr Bool
+  EqualStr :: Expr String -> Expr String -> Expr Bool
+  EqualInt :: Expr Integer -> Expr Integer -> Expr Bool
+  EqualBool :: Expr Bool -> Expr Bool -> Expr Bool
   TypeError :: String -> String -> Expr a
   -- ^ Params are expected and actual types of a subexpression
+
+deriving instance Eq (Expr a)
+deriving instance Show (Expr a)
 
 -- | Evaluates an expression via Rail commands, and then proceeds to the given
 -- path.
@@ -59,6 +66,10 @@ render e cont = case e of
   Append x y -> render x $ render y $ R.Append :>> cont
   Size x -> render x $ R.Size :>> cont
   Greater x y -> render x $ render y $ R.Greater :>> cont
+  Equal x y -> render x $ render y $ R.Equal :>> cont
+  EqualStr x y -> render x $ render y $ R.Equal :>> cont
+  EqualInt x y -> render x $ render y $ R.Equal :>> cont
+  EqualBool x y -> render x $ render y $ R.Equal :>> cont
   TypeError ex act -> End $ R.Internal $
     "Type error in expression: expected " ++ ex ++ ", got " ++ act
 
@@ -94,21 +105,29 @@ simplify e = case e of
     simp -> FromBool simp
   Add x y -> case (simplify x, simplify y) of
     (Int a, Int b) -> Int $ a + b
+    (Int 0, sy) -> sy
+    (sx, Int 0) -> sx
     (sx, sy) -> Add sx sy
   Sub x y -> case (simplify x, simplify y) of
     (Int a, Int b) -> Int $ a - b
+    (sx, Int 0) -> sx
     (sx, sy) -> Sub sx sy
   Mult x y -> case (simplify x, simplify y) of
     (Int a, Int b) -> Int $ a * b
+    (Int 1, sy) -> sy
+    (sx, Int 1) -> sx
     (sx, sy) -> Mult sx sy
   Div x y -> case (simplify x, simplify y) of
     (Int a, Int b) -> Int $ div a b
+    (sx, Int 1) -> sx
     (sx, sy) -> Div sx sy
   Rem x y -> case (simplify x, simplify y) of
     (Int a, Int b) -> Int $ mod a b
     (sx, sy) -> Rem sx sy
   Append x y -> case (simplify x, simplify y) of
     (Str a, Str b) -> Str $ a ++ b
+    (Str "", sy) -> sy
+    (sx, Str "") -> sx
     (sx, sy) -> Append sx sy
   Size s -> case simplify s of
     Str a -> Int $ genericLength a
@@ -117,6 +136,21 @@ simplify e = case e of
   Greater x y -> case (simplify x, simplify y) of
     (Int a, Int b) -> Bool $ a > b
     (sx, sy) -> Greater sx sy
+  Equal x y -> case (simplify x, simplify y) of
+    (Val a, Val b) -> Bool $ a == b
+    (PutStr a, PutStr b) -> simplify $ EqualStr a b
+    (sx, sy) -> if sx == sy then Bool True else Equal sx sy
+  EqualStr x y -> case (simplify x, simplify y) of
+    (Str a, Str b) -> Bool $ a == b
+    (ShowInt a, ShowInt b) -> simplify $ EqualInt a b
+    (sx, sy) -> if sx == sy then Bool True else EqualStr sx sy
+  EqualInt x y -> case (simplify x, simplify y) of
+    (Int a, Int b) -> Bool $ a == b
+    (FromBool a, FromBool b) -> simplify $ EqualBool a b
+    (sx, sy) -> if sx == sy then Bool True else EqualInt sx sy
+  EqualBool x y -> case (simplify x, simplify y) of
+    (Bool a, Bool b) -> Bool $ a == b
+    (sx, sy) -> if sx == sy then Bool True else EqualBool sx sy
   _ -> e
 
 -- | Equivalent to 'read', except it returns Nothing on read error.
