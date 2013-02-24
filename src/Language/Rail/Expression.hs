@@ -80,8 +80,10 @@ render e cont = case e of
 simplify :: Expr a -> Expr a
 simplify e = case e of
   GetStr v -> case simplify v of
-    PutStr s -> s
     Val (R.Str s) -> Str s
+    Val R.Nil -> TypeError "string" "nil"
+    Val (R.Pair _ _) -> TypeError "string" "pair"
+    PutStr s -> s
     simp -> GetStr simp
   PutStr s -> case simplify s of
     Str a -> Val (R.Str a)
@@ -94,8 +96,8 @@ simplify e = case e of
     ShowInt i -> i
     simp -> ReadInt simp
   ShowInt i -> case simplify i of
-    ReadInt s -> s
     Int a -> Str $ show a
+    ReadInt s -> s
     simp -> ShowInt simp
   ToBool i -> case simplify i of
     Int 0 -> Bool False

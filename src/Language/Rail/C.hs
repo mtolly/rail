@@ -11,7 +11,7 @@ import Language.Rail.Base
 import Paths_rail (getDataFileName)
 import Data.Char (toLower, isAscii, isAlphaNum)
 import qualified Data.Map as Map
-import Data.List (nub, intersperse)
+import Data.List (intersperse)
 import Text.PrettyPrint.HughesPJ (Doc, text, hcat, vcat, render, nest, ($$))
 import Language.Rail.Parse (Posn, Direction)
 import Language.C.Syntax.Constants (showStringLit)
@@ -65,7 +65,7 @@ makeProgram pairs = let
 -- | Translates a Rail function to a C function.
 makeFunction :: String -> System (Posn, Direction) () Result Command -> Doc
 makeFunction fname sys = let
-  vars = variables sys
+  vars = systemVars sys
   startCode = block $ systemStart sys
   pathsCode = map (\(pd, path) -> label (makeLabel pd) (block path)) $
     Map.toList $ systemPaths sys
@@ -79,17 +79,6 @@ makeFunction fname sys = let
       , label "done" $ vcat cleanup $$ text "return;"-- detach/collect locals
       ]
     , text "}" ]
-
--- | Find all the local variables used in a function.
-variables :: System (Posn, Direction) () Result Command -> [String]
-variables (System st ps) = nub $ concatMap pathVars (st : Map.elems ps) where
-  pathVars :: Path (Posn, Direction) () Result Command -> [String]
-  pathVars g = case g of
-    Push v :>> x  -> v : pathVars x
-    Pop  v :>> x  -> v : pathVars x
-    _      :>> x  -> pathVars x
-    Branch () x y -> pathVars x ++ pathVars y
-    _             -> []
 
 -- | For variable foo, make the declaration @\"struct value *var_foo = NULL;@\"
 vardecl :: String -> Doc
