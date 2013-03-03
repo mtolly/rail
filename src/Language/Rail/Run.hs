@@ -22,7 +22,8 @@ import Control.Monad.Trans.Error
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.IO.Class (liftIO)
 import System.IO (isEOF, hPutStr, stderr)
-import System.IO.Error (catchIOError, isEOFError)
+import System.IO.Error (isEOFError)
+import qualified Control.Exception (catch)
 import Data.Void (absurd)
 
 data Memory = Memory
@@ -143,7 +144,7 @@ runCommand c = case c of
 
 -- | Like 'getChar', but catches EOF exceptions and returns Nothing.
 getChar' :: IO (Maybe Char)
-getChar' = catchIOError (fmap Just getChar) $ \e ->
+getChar' = Control.Exception.catch (fmap Just getChar) $ \e ->
   if isEOFError e then return Nothing else ioError e
 
 math :: (Integer -> Integer -> Integer) -> Rail ()
