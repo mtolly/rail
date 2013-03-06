@@ -19,5 +19,3 @@ main = getArgs >>= \argv -> case argv of
     , "       hrail -c file-in.rail file-out.c    (generate C code)"
     , "       hrail -r file-in.rail file-out.rail (clean up Rail code)"
     ]
-
-
