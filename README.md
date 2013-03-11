@@ -21,15 +21,18 @@ and install the package using cabal:
 This installs the `rail` library, and the `hrail` executable. To run the executable:
 
     hrail input.rail
-    hrail input.rail output.c
+    hrail -c input.rail output.c
+    hrail -r input.rail output.rail
 
-The first form directly runs the Rail program, and the second generates a C program.
+The first form directly runs the Rail program. The second generates a C program. The third
+"cleans up" the Rail code so all lines are read horizontally, left-to-right. This can be
+useful for debugging.
 
 Code generation
 ===============
 
-Both the interpreter and the C generator start by statically traversing each function to build a
-simplified control flow graph. This enables simple C code using goto statements to travel between
+The interpreter/compiler starts by statically traversing each function to build a simplified
+control flow graph. This enables simple C code using goto statements to travel between
 (more or less) basic blocks. As an example, the following Rail function (a cat program):
 
     $ 'main' (--):
