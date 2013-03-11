@@ -53,21 +53,24 @@ getString g p d = map (\pn -> (pn, g ! pn)) $
 -- reads a string literal which ends at the given end character.
 readConstant :: [(Posn, Char)] -> Char -> Maybe (String, Posn)
 readConstant pnchs endc = go "" pnchs where
-  go str ((_, '\\') : (_, '\\') : pcs) =
-    go ('\\' : str) pcs
-  go str ((_, '\\') : (_, c) : (_, '\\') : pcs) = case c of
-    'a' -> go ('\a' : str) pcs
-    'b' -> go ('\b' : str) pcs
-    't' -> go ('\t' : str) pcs
-    'n' -> go ('\n' : str) pcs
-    'v' -> go ('\v' : str) pcs
-    'f' -> go ('\f' : str) pcs
-    'r' -> go ('\r' : str) pcs
-    _ -> go (c : str) pcs
+  go str ((_, '\\') : pcs) = case span (\(_, ch) -> ch /= '\\') pcs of
+    (esc, _ : pcs') -> case map snd esc of
+      "" -> go ('\\' : str) pcs'
+      "a" -> go ('\a' : str) pcs'
+      "b" -> go ('\b' : str) pcs'
+      "t" -> go ('\t' : str) pcs'
+      "n" -> go ('\n' : str) pcs'
+      "v" -> go ('\v' : str) pcs'
+      "f" -> go ('\f' : str) pcs'
+      "r" -> go ('\r' : str) pcs'
+      "[" -> go ('[' : str) pcs'
+      "]" -> go (']' : str) pcs'
+      _ -> Nothing -- unrecognized escape sequence
+    _ -> Nothing -- no trailing backslash
   go str ((p, c) : pcs) = if c == endc
     then Just (reverse str, p)
     else go (c : str) pcs
-  go _ [] = Nothing
+  go _ [] = Nothing -- no end character
 
 -- | True if the character is legal in a variable or function name.
 varChar :: Char -> Bool
