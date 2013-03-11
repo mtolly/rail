@@ -265,7 +265,14 @@ function :: (Eq c) => String -> System c () Result Command -> String
 function name sys = show $ functionBlock name sys
 
 program :: (Eq c) => [(String, System c () Result Command)] -> String
-program = concatMap $ uncurry function
+program = removeEndSpace . concatMap (uncurry function)
+
+removeEndSpace :: String -> String
+removeEndSpace "" = ""
+removeEndSpace str = case span (== ' ') str of
+  (_  , "") -> ""
+  (_  , '\n' : str') -> '\n' : removeEndSpace str'
+  (sps, c    : str') -> sps ++ [c] ++ removeEndSpace str'
 
 toFile :: (Eq c) => FilePath -> [(String, System c () Result Command)] -> IO ()
 toFile fp = writeFile fp . program
