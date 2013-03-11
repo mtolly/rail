@@ -25,8 +25,13 @@ stringLiteral s@[c] | isDigit c = s
 stringLiteral s = "[" ++ concatMap f s ++ "]" where
   f c = case c of
     '\\' -> "\\\\"
-    '\n' -> "\\n\\"
+    '\a' -> "\\a\\"
+    '\b' -> "\\b\\"
     '\t' -> "\\t\\"
+    '\n' -> "\\n\\"
+    '\v' -> "\\v\\"
+    '\f' -> "\\f\\"
+    '\r' -> "\\r\\"
     '['  -> "\\[\\"
     ']'  -> "\\]\\"
     _    -> [c]
