@@ -21,7 +21,7 @@ import Control.Monad.Trans.State
 import Control.Monad.Trans.Error
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.IO.Class (liftIO)
-import System.IO (isEOF, hPutStr, stderr)
+import System.IO (isEOF, hPutStr, stderr, hFlush, stdout)
 import System.IO.Error (isEOFError)
 import qualified Control.Exception (catch)
 import Data.Void (absurd)
@@ -117,7 +117,7 @@ runCommand c = case c of
   Div -> math div
   Rem -> math mod
   EOF -> liftIO isEOF >>= pushBool
-  Output -> popStr >>= liftIO . putStr
+  Output -> popStr >>= liftIO . putStr >> liftIO (hFlush stdout)
   Input -> liftIO getChar' >>= \mc -> case mc of
     Just ch -> push $ Str [ch]
     Nothing -> err "input: end of file"
