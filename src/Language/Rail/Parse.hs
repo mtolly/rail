@@ -65,7 +65,12 @@ readConstant pnchs endc = go "" pnchs where
       "r" -> go ('\r' : str) pcs'
       "[" -> go ('[' : str) pcs'
       "]" -> go (']' : str) pcs'
-      _ -> Nothing -- unrecognized escape sequence
+      esc' -> let
+        len = length esc'
+        (l, r) = splitAt (quot len 2) esc'
+        in if even len && l == reverse r && all isDigit l
+          then go (toEnum (read l) : str) pcs'
+          else Nothing -- unrecognized escape sequence
     _ -> Nothing -- no trailing backslash
   go str ((p, c) : pcs) = if c == endc
     then Just (reverse str, p)

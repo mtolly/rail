@@ -11,7 +11,7 @@ module Language.Rail.Generate
 
 import Language.Rail.Base
 import Data.ControlFlow
-import Data.Char (isDigit)
+import Data.Char (isDigit, isPrint)
 import qualified Data.Map as Map
 import Text.Block
 import Control.Monad.Trans.State
@@ -34,7 +34,10 @@ stringLiteral s = "[" ++ concatMap f s ++ "]" where
     '\r' -> "\\r\\"
     '['  -> "\\[\\"
     ']'  -> "\\]\\"
-    _    -> [c]
+    _    -> if isPrint c
+      then [c]
+      else let code = show $ fromEnum c in
+        concat ["\\", code, reverse code, "\\"]
 
 -- | A literal value, to be read travelling east.
 literal :: Val -> String
