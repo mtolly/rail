@@ -1,12 +1,12 @@
 Brainfuck interpreter in Rail, by Michael Tolly.
-Takes stdin in the form of "program|input".
+Takes stdin in the form of "program!input".
 $ 'main'
  -{read program}{main loop}#
 
-reads a string terminated by a pipe '|' character
+reads a string terminated by an exclamation mark '!' character
 $ 'read program'
  \                           /-(char)p-\
-  -[]--i(!char!)-(char)[|]q-<          |
+  -[]--i(!char!)-(char)[!]q-<          |
      /                       \-#       |
      |                                 |
      \---------------------------------/
