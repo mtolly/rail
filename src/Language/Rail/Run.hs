@@ -93,7 +93,7 @@ popInt = pop >>= \v -> case v of
   _ -> err "popInt: expected string"
 
 popBool :: Rail Bool
-popBool = popInt >>= \s -> case s of
+popBool = popInt >>= \i -> case i of
   0 -> return False
   1 -> return True
   _ -> err "popBool: expected 0 or 1"
@@ -125,7 +125,7 @@ runCommand c = case c of
   Input -> liftIO getChar' >>= \mc -> case mc of
     Just ch -> push $ Str [ch]
     Nothing -> err "input: end of file"
-  Equal -> liftA2 (==) pop pop >>= pushBool
+  Equal -> liftA2 equal pop pop >>= pushBool
   Greater -> liftA2 (<) popInt popInt >>= pushBool -- (<) because flipped args
   Underflow -> gets stack >>= pushInt . fromIntegral . length
   Type -> pop >>= \v -> push $ Str $ case v of
@@ -154,6 +154,11 @@ getChar' = Control.Exception.catch (fmap Just getChar) $ \e ->
 
 math :: (Integer -> Integer -> Integer) -> Rail ()
 math op = liftA2 (flip op) popInt popInt >>= pushInt
+
+equal :: Val -> Val -> Bool
+equal (Int i) (Str s) = show i == s
+equal (Str s) (Int i) = show i == s
+equal x y = x == y
 
 -- | Runs a piece of code. Does not create a new scope.
 run :: Flow () Result Command -> Rail ()
