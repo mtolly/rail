@@ -49,9 +49,9 @@ deriving instance Show (Expr a)
 -- path.
 render :: Expr a -> Path c () Result Command -> Path c () Result Command
 render e cont = case e of
-  Int i -> R.Val (R.Str $ show i) :>> cont
+  Int i -> R.Val (R.Int i) :>> cont
   Str s -> R.Val (R.Str s) :>> cont
-  Bool b -> R.Val (R.Str $ if b then "1" else "0") :>> cont
+  Bool b -> R.Val (R.Int $ if b then 1 else 0) :>> cont
   Val v -> R.Val v :>> cont
   Var s -> R.Push s :>> cont
   GetStr x -> render x cont
@@ -81,6 +81,7 @@ simplify :: Expr a -> Expr a
 simplify e = case e of
   GetStr v -> case simplify v of
     Val (R.Str s) -> Str s
+    Val (R.Int i) -> Str $ show i
     Val R.Nil -> TypeError "string" "nil"
     Val (R.Pair _ _) -> TypeError "string" "pair"
     PutStr s -> s
@@ -160,6 +161,7 @@ simplify e = case e of
   Type x -> case simplify x of
     Val v -> Str $ case v of
       R.Str _ -> "string"
+      R.Int _ -> "string"
       R.Nil -> "nil"
       R.Pair _ _ -> "list"
     PutStr _ -> Str "string"

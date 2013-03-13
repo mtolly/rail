@@ -37,6 +37,7 @@ data Command
 
 data Val
   = Str String
+  | Int Integer
   | Nil
   | Pair Val Val
   deriving (Eq, Ord, Show, Read, Data, Typeable)

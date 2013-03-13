@@ -75,6 +75,7 @@ pop = gets stack >>= \stk -> case stk of
 popStr :: Rail String
 popStr = pop >>= \v -> case v of
   Str s -> return s
+  Int i -> return $ show i
   _ -> err "popStr: expected string"
 
 -- | Equivalent to 'read', except it returns Nothing on read error.
@@ -84,15 +85,18 @@ readMaybe s = case reads s of
   _ -> Nothing
 
 popInt :: Rail Integer
-popInt = popStr >>= \s -> case readMaybe s of
-  Just i -> return i
-  Nothing -> err "popInt: couldn't read string as integer"
+popInt = pop >>= \v -> case v of
+  Str s -> case readMaybe s of
+    Just i -> return i
+    Nothing -> err "popInt: expected int, got non-int string"
+  Int i -> return i
+  _ -> err "popInt: expected string"
 
 popBool :: Rail Bool
-popBool = popStr >>= \s -> case s of
-  "0" -> return False
-  "1" -> return True
-  _ -> err "popBool: expected \"0\" or \"1\""
+popBool = popInt >>= \s -> case s of
+  0 -> return False
+  1 -> return True
+  _ -> err "popBool: expected 0 or 1"
 
 popPair :: Rail (Val, Val)
 popPair = pop >>= \v -> case v of
@@ -100,10 +104,10 @@ popPair = pop >>= \v -> case v of
   _ -> err "popPair: expected pair"
 
 pushInt :: Integer -> Rail ()
-pushInt = push . Str . show
+pushInt = push . Int
 
 pushBool :: Bool -> Rail ()
-pushBool b = push $ Str $ if b then "1" else "0"
+pushBool b = pushInt $ if b then 1 else 0
 
 runCommand :: Command -> Rail ()
 runCommand c = case c of
@@ -126,6 +130,7 @@ runCommand c = case c of
   Underflow -> gets stack >>= pushInt . fromIntegral . length
   Type -> pop >>= \v -> push $ Str $ case v of
     Str _ -> "string"
+    Int _ -> "string"
     Nil -> "nil"
     Pair _ _ -> "list"
   Cons -> liftA2 (flip Pair) pop pop >>= push
@@ -148,7 +153,7 @@ getChar' = Control.Exception.catch (fmap Just getChar) $ \e ->
   if isEOFError e then return Nothing else ioError e
 
 math :: (Integer -> Integer -> Integer) -> Rail ()
-math op = liftA2 (flip op) popInt popInt >>= push . Str . show
+math op = liftA2 (flip op) popInt popInt >>= pushInt
 
 -- | Runs a piece of code. Does not create a new scope.
 run :: Flow () Result Command -> Rail ()

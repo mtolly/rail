@@ -137,6 +137,7 @@ collect v = text $ "collect(" ++ varName v ++ ");"
 generate :: Val -> Doc
 generate v = case v of
   Str s -> text $ "new_str_copy(" ++ stringLit s ++ ")"
+  Int i -> text $ "new_int(" ++ show i ++ ")"
   Nil -> text "new_nil()"
   Pair x y ->
     hcat [text "make_pair(", generate x, text ", ", generate y, text ")"]
