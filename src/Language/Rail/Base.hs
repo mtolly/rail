@@ -90,6 +90,15 @@ instance ToVal Bool where
 instance ToVal Val where
   toVal = id
 
+instance (ToVal a, ToVal b) => ToVal (a, b) where
+  toVal (x, y) = Pair (toVal x) (toVal y)
+
+instance (ToVal a) => ToVal (Maybe a) where
+  toVal = maybe Nil toVal
+
+instance ToVal () where
+  toVal () = Nil
+
 -- | Equivalent to 'read', except it returns Nothing on read error.
 readMaybe :: (Read a) => String -> Maybe a
 readMaybe s = case reads s of
