@@ -92,12 +92,6 @@ popPair = pop >>= \v -> case v of
   Pair x y -> return (x, y)
   _ -> err "popPair: expected pair"
 
-pushInt :: Integer -> Rail ()
-pushInt = push . toVal
-
-pushBool :: Bool -> Rail ()
-pushBool = push . toVal
-
 runCommand :: Command -> Rail ()
 runCommand c = case c of
   Val x -> push x
@@ -109,21 +103,22 @@ runCommand c = case c of
   Mult -> math (*)
   Div -> math div
   Rem -> math mod
-  EOF -> liftIO isEOF >>= pushBool
+  EOF -> liftIO isEOF >>= push . toVal
   Output -> popStr >>= liftIO . putStr >> liftIO (hFlush stdout)
   Input -> liftIO getChar' >>= \mc -> case mc of
     Just ch -> push $ toVal [ch]
     Nothing -> err "input: end of file"
-  Equal -> liftA2 equal pop pop >>= pushBool
-  Greater -> liftA2 (<) popInt popInt >>= pushBool -- (<) because flipped args
-  Underflow -> gets stack >>= pushInt . fromIntegral . length
-  Type -> pop >>= \v -> push $ (`Str` Nothing) $ case v of
+  Equal -> liftA2 equal pop pop >>= push . toVal
+  Greater -> liftA2 (<) popInt popInt >>= push . toVal
+  -- (<) because flipped args: we're asking (2nd top of stack) > (top of stack)
+  Underflow -> gets stack >>= push . toVal . length
+  Type -> pop >>= \v -> push $ toVal $ case v of
     Str _ _ -> "string"
     Nil -> "nil"
     Pair _ _ -> "list"
   Cons -> liftA2 (flip Pair) pop pop >>= push
   Uncons -> popPair >>= \(x, y) -> push x >> push y
-  Size -> popStr >>= pushInt . fromIntegral . length
+  Size -> popStr >>= push . toVal . length
   Append -> liftA2 (flip (++)) popStr popStr >>= push . toVal
   Cut -> do
     i <- fmap fromIntegral popInt
@@ -141,7 +136,7 @@ getChar' = Control.Exception.catch (fmap Just getChar) $ \e ->
   if isEOFError e then return Nothing else ioError e
 
 math :: (Integer -> Integer -> Integer) -> Rail ()
-math op = liftA2 (flip op) popInt popInt >>= pushInt
+math op = liftA2 (flip op) popInt popInt >>= push . toVal
 
 equal :: Val -> Val -> Bool
 equal (Str _ (Just x)) (Str _ (Just y)) = x == y
