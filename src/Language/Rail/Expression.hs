@@ -39,8 +39,7 @@ data Expr a where
   EqualBool :: Expr Bool -> Expr Bool -> Expr Bool
   Type :: Expr Val -> Expr String
   EOF :: Expr Bool
-  TypeError :: String -> String -> Expr a
-  -- ^ Params are expected and actual types of a subexpression
+  TypeError :: String -> String -> Expr a -- expected and actual types
 
 deriving instance Eq (Expr a)
 deriving instance Show (Expr a)
@@ -49,9 +48,9 @@ deriving instance Show (Expr a)
 -- path.
 render :: Expr a -> Path c () Result Command -> Path c () Result Command
 render e cont = case e of
-  Int i -> R.Val (R.Int i) :>> cont
-  Str s -> R.Val (R.Str s) :>> cont
-  Bool b -> R.Val (R.Int $ if b then 1 else 0) :>> cont
+  Int i -> R.Val (R.toVal i) :>> cont
+  Str s -> R.Val (R.toVal s) :>> cont
+  Bool b -> R.Val (R.toVal b) :>> cont
   Val v -> R.Val v :>> cont
   Var s -> R.Push s :>> cont
   GetStr x -> render x cont
@@ -80,14 +79,13 @@ render e cont = case e of
 simplify :: Expr a -> Expr a
 simplify e = case e of
   GetStr v -> case simplify v of
-    Val (R.Str s) -> Str s
-    Val (R.Int i) -> Str $ show i
+    Val (R.Str s _) -> Str s
     Val R.Nil -> TypeError "string" "nil"
     Val (R.Pair _ _) -> TypeError "string" "pair"
     PutStr s -> s
     simp -> GetStr simp
   PutStr s -> case simplify s of
-    Str a -> Val (R.Str a)
+    Str a -> Val $ R.toVal a
     GetStr v -> v
     simp -> PutStr simp
   ReadInt s -> case simplify s of
@@ -160,8 +158,7 @@ simplify e = case e of
     (sx, sy) -> if sx == sy then Bool True else EqualBool sx sy
   Type x -> case simplify x of
     Val v -> Str $ case v of
-      R.Str _ -> "string"
-      R.Int _ -> "string"
+      R.Str _ _ -> "string"
       R.Nil -> "nil"
       R.Pair _ _ -> "list"
     PutStr _ -> Str "string"

@@ -91,12 +91,12 @@ action g (p, d) = case char g p of
   'u' -> Underflow :>> movement
   '[' -> case getString g p d of
     _ : pcs -> case readConstant pcs ']' of
-      Just (str, endp) -> Val (Str str) :>> moveFrom endp
+      Just (str, endp) -> Val (toVal str) :>> moveFrom endp
       Nothing -> lexerr "string literal"
     _ -> lexerr "string literal"
   ']' -> case getString g p d of
     _ : pcs -> case readConstant pcs '[' of
-      Just (str, endp) -> Val (Str str) :>> moveFrom endp
+      Just (str, endp) -> Val (toVal str) :>> moveFrom endp
       Nothing -> lexerr "string literal"
     _ -> lexerr "string literal"
   ')' -> case getString g p d of
@@ -134,7 +134,7 @@ action g (p, d) = case char g p of
   'm' -> Mult :>> movement
   'r' -> Rem :>> movement
   's' -> Sub :>> movement
-  n | isDigit n -> Val (Str [n]) :>> movement
+  n | isDigit n -> Val (toVal [n]) :>> movement
   'c' -> Cut :>> movement
   'p' -> Append :>> movement
   'z' -> Size :>> movement
@@ -142,10 +142,10 @@ action g (p, d) = case char g p of
   ':' -> Cons :>> movement
   '~' -> Uncons :>> movement
   '?' -> Type :>> movement
-  'f' -> Val (Str "0") :>> movement
+  'f' -> Val (toVal False) :>> movement
   'g' -> Greater :>> movement
   'q' -> Equal :>> movement
-  't' -> Val (Str "1") :>> movement
+  't' -> Val (toVal True) :>> movement
   -- Y junctions
   'v' -> case d of
     N -> junction NW NE

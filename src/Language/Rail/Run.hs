@@ -15,7 +15,6 @@ import Data.ControlFlow
 import Language.Rail.Base
 import Language.Rail.Parse (getFunctions)
 import qualified Data.Map as Map
-import Data.Char (isSpace)
 import Control.Applicative
 import Control.Monad.Trans.State
 import Control.Monad.Trans.Error
@@ -74,22 +73,12 @@ pop = gets stack >>= \stk -> case stk of
 
 popStr :: Rail String
 popStr = pop >>= \v -> case v of
-  Str s -> return s
-  Int i -> return $ show i
+  Str s _ -> return s
   _ -> err "popStr: expected string"
-
--- | Equivalent to 'read', except it returns Nothing on read error.
-readMaybe :: (Read a) => String -> Maybe a
-readMaybe s = case reads s of
-  [(n, sp)] | all isSpace sp -> Just n
-  _ -> Nothing
 
 popInt :: Rail Integer
 popInt = pop >>= \v -> case v of
-  Str s -> case readMaybe s of
-    Just i -> return i
-    Nothing -> err "popInt: expected int, got non-int string"
-  Int i -> return i
+  Str _ (Just i) -> return i
   _ -> err "popInt: expected string"
 
 popBool :: Rail Bool
@@ -104,10 +93,10 @@ popPair = pop >>= \v -> case v of
   _ -> err "popPair: expected pair"
 
 pushInt :: Integer -> Rail ()
-pushInt = push . Int
+pushInt = push . toVal
 
 pushBool :: Bool -> Rail ()
-pushBool b = pushInt $ if b then 1 else 0
+pushBool = push . toVal
 
 runCommand :: Command -> Rail ()
 runCommand c = case c of
@@ -123,26 +112,25 @@ runCommand c = case c of
   EOF -> liftIO isEOF >>= pushBool
   Output -> popStr >>= liftIO . putStr >> liftIO (hFlush stdout)
   Input -> liftIO getChar' >>= \mc -> case mc of
-    Just ch -> push $ Str [ch]
+    Just ch -> push $ toVal [ch]
     Nothing -> err "input: end of file"
   Equal -> liftA2 equal pop pop >>= pushBool
   Greater -> liftA2 (<) popInt popInt >>= pushBool -- (<) because flipped args
   Underflow -> gets stack >>= pushInt . fromIntegral . length
-  Type -> pop >>= \v -> push $ Str $ case v of
-    Str _ -> "string"
-    Int _ -> "string"
+  Type -> pop >>= \v -> push $ (`Str` Nothing) $ case v of
+    Str _ _ -> "string"
     Nil -> "nil"
     Pair _ _ -> "list"
   Cons -> liftA2 (flip Pair) pop pop >>= push
   Uncons -> popPair >>= \(x, y) -> push x >> push y
   Size -> popStr >>= pushInt . fromIntegral . length
-  Append -> liftA2 (flip (++)) popStr popStr >>= push . Str
+  Append -> liftA2 (flip (++)) popStr popStr >>= push . toVal
   Cut -> do
     i <- fmap fromIntegral popInt
     s <- popStr
     if 0 <= i && i <= length s
       then case splitAt i s of
-        (x, y) -> push (Str x) >> push (Str y)
+        (x, y) -> push (toVal x) >> push (toVal y)
       else err "cut: string index out of bounds"
   Push var -> getVar var >>= push
   Pop var -> pop >>= setVar var
@@ -156,8 +144,7 @@ math :: (Integer -> Integer -> Integer) -> Rail ()
 math op = liftA2 (flip op) popInt popInt >>= pushInt
 
 equal :: Val -> Val -> Bool
-equal (Int i) (Str s) = show i == s
-equal (Str s) (Int i) = show i == s
+equal (Str _ (Just x)) (Str _ (Just y)) = x == y
 equal x y = x == y
 
 -- | Runs a piece of code. Does not create a new scope.

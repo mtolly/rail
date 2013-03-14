@@ -41,8 +41,7 @@ stringLiteral s = "[" ++ concatMap f s ++ "]" where
 
 -- | A literal value, to be read travelling east.
 literal :: Val -> String
-literal (Str s) = stringLiteral s
-literal (Int i) = stringLiteral $ show i
+literal (Str s _) = stringLiteral s
 literal Nil = "n"
 literal (Pair x y) = literal x ++ literal y ++ ":"
 
