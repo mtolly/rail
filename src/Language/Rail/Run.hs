@@ -25,12 +25,14 @@ import System.IO.Error (isEOFError)
 import qualified Control.Exception (catch)
 import Data.Void (absurd)
 
+-- | The memory state of a running Rail program.
 data Memory = Memory
   { stack     :: [Val]
   , variables :: Map.Map String Val
   , functions :: Map.Map String (Flow () Result Command)
   }
 
+-- | A memory state with no defined variables or functions, and an empty stack.
 emptyMemory :: Memory
 emptyMemory = Memory
   { stack     = []
@@ -42,6 +44,7 @@ emptyMemory = Memory
 -- messages) with 'StateT' (for the stack and variables).
 type Rail = StateT Memory (ErrorT String IO)
 
+-- | Unwraps the Rail monad, executing its side-effects as IO.
 runRail :: Rail () -> Memory -> IO ()
 runRail r mem = runErrorT (evalStateT r mem) >>= either (hPutStr stderr) return
 
@@ -92,6 +95,7 @@ popPair = pop >>= \v -> case v of
   Pair x y -> return (x, y)
   _ -> err "popPair: expected pair"
 
+-- | Executes a single Rail instruction.
 runCommand :: Command -> Rail ()
 runCommand c = case c of
   Val x -> push x
@@ -158,10 +162,12 @@ call :: Flow () Result Command -> Rail ()
 call sub = gets variables >>= \vs ->
   setVariables Map.empty >> run sub >> setVariables vs
 
+-- | Given a Rail file, add its functions to an empty memory state.
 compile :: String -> Memory
 compile str = emptyMemory
   { functions = Map.fromList $ map (mapSnd flow) $ getFunctions str }
   where mapSnd f (x, y) = (x, f y)
 
+-- | Runs a memory state that has a \"main\" function defined.
 runMemory :: Memory -> IO ()
 runMemory = runRail $ run $ Call "main" :>> End Return

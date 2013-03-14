@@ -1,9 +1,6 @@
 -- | A Rail to C compiler. Generates a single file of C99-compliant code.
 module Language.Rail.C
-( mangle
-, makeLabel
-, makeFile
-, makeFunction
+( makeFile
 ) where
 
 import Data.ControlFlow
@@ -51,6 +48,7 @@ makeLabel ((r, c), d) = show d ++ "_" ++ show r ++ "_" ++ show c
 stringLit :: String -> String
 stringLit s = showStringLit s ""
 
+-- | Creates a single, complete C99 file, given a set of Rail functions.
 makeFile :: [(String, System (Posn, Direction) () Result Command)] -> String
 makeFile pairs = header ++ (render $ makeProgram pairs) ++ footer
 

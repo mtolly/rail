@@ -76,6 +76,7 @@ render e cont = case e of
   TypeError ex act -> End $ R.Internal $
     "Type error in expression: expected " ++ ex ++ ", got " ++ act
 
+-- | Optimize an expression via static type checking and operation identities.
 simplify :: Expr a -> Expr a
 simplify e = case e of
   GetStr v -> case simplify v of

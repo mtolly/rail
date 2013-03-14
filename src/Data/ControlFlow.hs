@@ -96,6 +96,7 @@ unroll cfrom gto = go where
     Continue c | c == cfrom -> gto
     _                       -> g
 
+-- | Applies a function to every path inside a system.
 mapPaths
   :: (Path c b e a -> Path c b' e' a') -> System c b e a -> System c b' e' a'
 mapPaths f sys = System
@@ -139,6 +140,7 @@ flow sys = let
     End e        -> End e
   in toFlow $ systemStart sys
 
+-- | Applies a function to every continuation label in a path.
 mapContinues :: (c -> c') -> Path c b e a -> Path c' b e a
 mapContinues f g = case g of
   Continue c   -> Continue $ f c
@@ -155,6 +157,7 @@ numberPaths (System st ps) = let
     { systemStart = mapContinues contToInt st
     , systemPaths = Map.mapKeys contToInt $ fmap (mapContinues contToInt) ps }
 
+-- | Removes any paths which only serve to continue on to another path.
 cleanContinues :: (Ord c) => System c b e a -> System c b e a
 cleanContinues sys = let
   toClean = [ c | (c, Continue c') <- Map.toList $ systemPaths sys, c /= c' ]

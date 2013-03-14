@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveDataTypeable #-}
+-- | The core datatypes for the Rail language.
 module Language.Rail.Base
 ( Command(..)
 , Val(..)
@@ -13,6 +14,7 @@ import Data.List (nub)
 import qualified Data.Map as Map
 import Data.Char (isSpace)
 
+-- | An instruction in a Rail program.
 data Command
   = EOF
   | Input
@@ -37,16 +39,18 @@ data Command
   | Equal
   deriving (Eq, Ord, Show, Read, Data, Typeable)
 
+-- | A value stored on the Rail stack.
 data Val
   = Str String (Maybe Integer)
   | Nil
   | Pair Val Val
   deriving (Eq, Ord, Show, Read, Data, Typeable)
 
+-- | The end result of a Rail function.
 data Result
-  = Return
-  | Boom
-  | Internal String
+  = Return -- ^ a normal function return
+  | Boom -- ^ pop a string value off the stack, which is an error message
+  | Internal String -- ^ the result of a parse error or other static error
   deriving (Eq, Ord, Show, Read, Data, Typeable)
 
 -- | Find all the local variables used in a function.

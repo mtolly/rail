@@ -269,9 +269,11 @@ functionBlock name sys = let
       horiz (commandChunk (systemWidth sys) sys') $
         routeChunk sys'
 
+-- | Generates Rail code for a single function.
 function :: (Eq c) => String -> System c () Result Command -> String
 function name sys = show $ functionBlock name sys
 
+-- | Generates Rail code for a set of functions.
 program :: (Eq c) => [(String, System c () Result Command)] -> String
 program = removeEndSpace . concatMap (uncurry function)
 
@@ -282,5 +284,7 @@ removeEndSpace str = case span (== ' ') str of
   (_  , '\n' : str') -> '\n' : removeEndSpace str'
   (sps, c    : str') -> sps ++ [c] ++ removeEndSpace str'
 
+-- | Generates Rail code for a set of functions, and saves the complete Rail
+-- file to disk.
 toFile :: (Eq c) => FilePath -> [(String, System c () Result Command)] -> IO ()
 toFile fp = writeFile fp . program

@@ -1,8 +1,10 @@
 {-# LANGUAGE DeriveDataTypeable #-}
+-- | Converts the textual grids of a Rail program to abstract control flow
+-- graphs.
 module Language.Rail.Parse
 ( Grid
 , Posn
-, Direction
+, Direction(..)
 , makeGrid
 , makeSystem
 , functionName
@@ -21,17 +23,21 @@ import qualified Data.Map as Map
 import Control.Monad.Trans.State
 import Data.Data (Data, Typeable)
 
+-- | A two-dimensional array, where the top-left corner is index @(0, 0)@.
 type Grid = UArray Posn Char
 
--- | A grid position in (row, column) format.
+-- | A grid position in @(row, column)@ format.
 type Posn = (Int, Int)
 
+-- | One of the eight orthogonal or diagonal directions.
 data Direction = N | NE | E | SE | S | SW | W | NW
   deriving (Eq, Ord, Show, Read, Enum, Bounded, Data, Typeable)
 
 char :: Grid -> Posn -> Char
 char g p = if inRange (bounds g) p then g ! p else ' '
 
+-- | Converts a string to a two-dimensional grid, where newlines separate
+-- the grid rows.
 makeGrid :: String -> Grid
 makeGrid str = let
   rows = lines $ fixTabs $ fixCR str
