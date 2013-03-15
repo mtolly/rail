@@ -74,26 +74,22 @@ pop = gets stack >>= \stk -> case stk of
   [] -> err "pop: empty stack"
   x : xs -> setStack xs >> return x
 
+-- | Pops a value and tries to convert it to a Haskell type. Otherwise, throws
+-- an error message which includes the given type name.
+popAs :: (Value a) => String -> Rail a
+popAs typ = pop >>= maybe (err $ "popAs: expected " ++ typ) return . fromVal
+
 popStr :: Rail String
-popStr = pop >>= \v -> case v of
-  Str s _ -> return s
-  _ -> err "popStr: expected string"
+popStr = popAs "string"
 
 popInt :: Rail Integer
-popInt = pop >>= \v -> case v of
-  Str _ (Just i) -> return i
-  _ -> err "popInt: expected string"
+popInt = popAs "integer"
 
 popBool :: Rail Bool
-popBool = popInt >>= \i -> case i of
-  0 -> return False
-  1 -> return True
-  _ -> err "popBool: expected 0 or 1"
+popBool = popAs "bool"
 
 popPair :: Rail (Val, Val)
-popPair = pop >>= \v -> case v of
-  Pair x y -> return (x, y)
-  _ -> err "popPair: expected pair"
+popPair = popAs "pair"
 
 -- | Executes a single Rail instruction.
 runCommand :: Command -> Rail ()
