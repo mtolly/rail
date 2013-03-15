@@ -4,7 +4,8 @@ module Language.Rail.Run
 , emptyMemory
 , Rail
 , runRail
-, runCommand
+, runPure
+, runIO
 , run
 , call
 , compile
@@ -15,7 +16,7 @@ import Data.ControlFlow
 import Language.Rail.Base
 import Language.Rail.Parse (getFunctions)
 import qualified Data.Map as Map
-import Control.Monad (liftM2)
+import Control.Monad (liftM, liftM2)
 import Control.Monad.Trans.State
 import Control.Monad.Trans.Error
 import Control.Monad.Trans.Class (lift)
@@ -35,19 +36,20 @@ data Memory m = Memory
   }
 
 -- | A memory state with no defined variables or functions, and an empty stack.
+-- Non-pure I/O commands are performed in the 'IO' monad.
 emptyMemory :: Memory IO
 emptyMemory = Memory
   { stack     = []
   , variables = Map.empty
   , functions = Map.empty
-  , executor  = runCommand
+  , executor  = runIO
   }
 
 -- | A monad transformer for executing Rail programs, combining 'ErrorT'
 -- (for crash messages) with 'StateT' (for the stack and variables).
 type Rail m = StateT (Memory m) (ErrorT String m)
 
--- | Unwraps the Rail monad, executing its side-effects in the IO monad.
+-- | Unwraps the 'Rail' monad into 'IO'. Crash messages are printed to stderr.
 runRail :: Rail IO () -> Memory IO -> IO ()
 runRail r mem = runErrorT (evalStateT r mem) >>= either (hPutStr stderr) return
 
@@ -94,9 +96,10 @@ popBool = popAs "bool"
 popPair :: (Monad m) => Rail m (Val, Val)
 popPair = popAs "pair"
 
--- | Executes a single Rail instruction, in the IO monad.
-runCommand :: Command -> Rail IO ()
-runCommand c = case c of
+-- | Runs any non-I/O command in an arbitrary monad. Throws an error (via the
+-- Rail monad) if given an 'Input', 'Output', or 'EOF' command.
+runPure :: (Monad m) => Command -> Rail m ()
+runPure c = case c of
   Val x -> push x
   Call fun -> gets functions >>= \funs -> case Map.lookup fun funs of
     Nothing -> err $ "call: undefined function " ++ fun
@@ -106,11 +109,6 @@ runCommand c = case c of
   Mult -> math (*)
   Div -> math div
   Rem -> math mod
-  EOF -> liftIO isEOF >>= push . toVal
-  Output -> popStr >>= liftIO . putStr >> liftIO (hFlush stdout)
-  Input -> liftIO getChar' >>= \mc -> case mc of
-    Just ch -> push $ toVal [ch]
-    Nothing -> err "input: end of file"
   Equal -> liftM2 equal pop pop >>= push . toVal
   Greater -> liftM2 (<) popInt popInt >>= push . toVal
   -- (<) because flipped args: we're asking (2nd top of stack) > (top of stack)
@@ -124,7 +122,7 @@ runCommand c = case c of
   Size -> popStr >>= push . toVal . length
   Append -> liftM2 (flip (++)) popStr popStr >>= push . toVal
   Cut -> do
-    i <- fmap fromIntegral popInt
+    i <- liftM fromIntegral popInt
     s <- popStr
     if 0 <= i && i <= length s
       then case splitAt i s of
@@ -132,6 +130,21 @@ runCommand c = case c of
       else err "cut: string index out of bounds"
   Push var -> getVar var >>= push
   Pop var -> pop >>= setVar var
+  EOF -> pureError
+  Input -> pureError
+  Output -> pureError
+  where pureError = err "runPure: unsupported I/O operation"
+
+-- | Executes any single Rail instruction, where 'Input', 'Output', and 'EOF'
+-- commands are performed in the 'IO' monad.
+runIO :: Command -> Rail IO ()
+runIO c = case c of
+  EOF -> liftIO isEOF >>= push . toVal
+  Output -> popStr >>= liftIO . putStr >> liftIO (hFlush stdout)
+  Input -> liftIO getChar' >>= \mc -> case mc of
+    Just ch -> push $ toVal [ch]
+    Nothing -> err "input: end of file"
+  _ -> runPure c
 
 -- | Like 'getChar', but catches EOF exceptions and returns Nothing.
 getChar' :: IO (Maybe Char)
