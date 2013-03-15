@@ -5,7 +5,7 @@ module Language.Rail.Base
 , Val(..)
 , Result(..)
 , systemVars
-, ToVal(..)
+, Value(..)
 ) where
 
 import Data.Data (Data, Typeable)
@@ -13,6 +13,7 @@ import Data.ControlFlow
 import Data.List (nub)
 import qualified Data.Map as Map
 import Data.Char (isSpace)
+import Control.Applicative (liftA2)
 
 -- | An instruction in a Rail program.
 data Command
@@ -65,43 +66,68 @@ systemVars (System st ps) = let
     _             -> []
   in nub $ concatMap pathVars $ st : Map.elems ps
 
--- | General class for things that can be converted to Rail values.
--- Uses the same list hack as the 'Show' class, in order to treat Strings
--- differently without using any language extensions.
+-- | General class for things that can be converted to/from Rail values.
+-- Uses the same list hack as the 'Show' and 'Read' classes, in order to treat
+-- Strings differently without using any language extensions.
 --
--- Minimal definition: toVal.
-class ToVal a where
-  toVal :: a -> Val
-  listToVal :: [a] -> Val
-  listToVal = foldr (\x l -> Pair (toVal x) l) Nil
+-- Minimal definition: toVal and fromVal.
+class Value a where
+  toVal       :: a   -> Val
+  listToVal   :: [a] -> Val
+  fromVal     :: Val -> Maybe a
+  listFromVal :: Val -> Maybe [a]
+  
+  listToVal              = foldr (\x l -> Pair (toVal x) l) Nil
+  listFromVal Nil        = Just []
+  listFromVal (Pair x y) = liftA2 (:) (fromVal x) (listFromVal y)
+  listFromVal _          = Nothing
 
-instance (ToVal a) => ToVal [a] where
-  toVal = listToVal
+instance (Value a) => Value [a] where
+  toVal   = listToVal
+  fromVal = listFromVal
 
-instance ToVal Char where
-  toVal c = let s = [c] in Str s $ readMaybe s
-  listToVal s = Str s $ readMaybe s
+instance Value Char where
+  toVal       c           = let s = [c] in Str s $ readMaybe s
+  listToVal   s           = Str s $ readMaybe s
+  fromVal     (Str [c] _) = Just c
+  fromVal     _           = Nothing
+  listFromVal (Str s _)   = Just s
+  listFromVal _           = Nothing
 
-instance ToVal Int where
-  toVal i = Str (show i) $ Just $ fromIntegral i
+instance Value Int where
+  toVal   i                = Str (show i) $ Just $ fromIntegral i
+  fromVal (Str _ (Just i)) = Just $ fromIntegral i
+  fromVal _                = Nothing
 
-instance ToVal Integer where
-  toVal i = Str (show i) $ Just i
+instance Value Integer where
+  toVal   i                = Str (show i) $ Just i
+  fromVal (Str _ (Just i)) = Just i
+  fromVal _                = Nothing
 
-instance ToVal Bool where
-  toVal b = toVal $ fromEnum b
+instance Value Bool where
+  toVal   b                = toVal $ fromEnum b
+  fromVal (Str _ (Just 0)) = Just False
+  fromVal (Str _ (Just 1)) = Just True
+  fromVal _                = Nothing
 
-instance ToVal Val where
-  toVal = id
+instance Value Val where
+  toVal   = id
+  fromVal = Just
 
-instance (ToVal a, ToVal b) => ToVal (a, b) where
-  toVal (x, y) = Pair (toVal x) (toVal y)
+instance (Value a, Value b) => Value (a, b) where
+  toVal   (x, y)     = Pair (toVal x) (toVal y)
+  fromVal (Pair x y) = liftA2 (,) (fromVal x) (fromVal y)
+  fromVal _          = Nothing
 
-instance (ToVal a) => ToVal (Maybe a) where
-  toVal = maybe Nil toVal
+instance (Value a) => Value (Maybe a) where
+  toVal       = maybe Nil toVal
+  fromVal Nil = Just Nothing
+  fromVal x   = fmap Just $ fromVal x
 
-instance ToVal () where
-  toVal () = Nil
+instance Value () where
+  toVal   ()  = Nil
+  fromVal Nil = Just ()
+  fromVal _   = Nothing
 
 -- | Equivalent to 'read', except it returns Nothing on read error.
 readMaybe :: (Read a) => String -> Maybe a
