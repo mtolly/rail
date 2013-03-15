@@ -15,7 +15,7 @@ import Data.ControlFlow
 import Language.Rail.Base
 import Language.Rail.Parse (getFunctions)
 import qualified Data.Map as Map
-import Control.Applicative
+import Control.Monad (liftM2)
 import Control.Monad.Trans.State
 import Control.Monad.Trans.Error
 import Control.Monad.Trans.Class (lift)
@@ -26,73 +26,76 @@ import qualified Control.Exception (catch)
 import Data.Void (absurd)
 
 -- | The memory state of a running Rail program.
-data Memory = Memory
+data Memory m = Memory
   { stack     :: [Val]
   , variables :: Map.Map String Val
   , functions :: Map.Map String (Flow () Result Command)
+  , executor  :: Command -> Rail m ()
+  -- ^ The function which executes each 'Command' in the chosen monad.
   }
 
 -- | A memory state with no defined variables or functions, and an empty stack.
-emptyMemory :: Memory
+emptyMemory :: Memory IO
 emptyMemory = Memory
   { stack     = []
   , variables = Map.empty
   , functions = Map.empty
+  , executor  = runCommand
   }
 
--- | An IO monad for executing Rail programs, combining 'ErrorT' (for crash
--- messages) with 'StateT' (for the stack and variables).
-type Rail = StateT Memory (ErrorT String IO)
+-- | A monad transformer for executing Rail programs, combining 'ErrorT'
+-- (for crash messages) with 'StateT' (for the stack and variables).
+type Rail m = StateT (Memory m) (ErrorT String m)
 
--- | Unwraps the Rail monad, executing its side-effects as IO.
-runRail :: Rail () -> Memory -> IO ()
+-- | Unwraps the Rail monad, executing its side-effects in the IO monad.
+runRail :: Rail IO () -> Memory IO -> IO ()
 runRail r mem = runErrorT (evalStateT r mem) >>= either (hPutStr stderr) return
 
-err :: String -> Rail a
+err :: (Monad m) => String -> Rail m a
 err = lift . throwError
 
-setStack :: [Val] -> Rail ()
+setStack :: (Monad m) => [Val] -> Rail m ()
 setStack stk = modify $ \mem -> mem { stack = stk }
 
-setVariables :: Map.Map String Val -> Rail ()
+setVariables :: (Monad m) => Map.Map String Val -> Rail m ()
 setVariables vs = modify $ \mem -> mem { variables = vs }
 
-getVar :: String -> Rail Val
+getVar :: (Monad m) => String -> Rail m Val
 getVar v = gets variables >>= \vs -> case Map.lookup v vs of
   Just x -> return x
   Nothing -> err $ "getVar: undefined variable: " ++ v
 
-setVar :: String -> Val -> Rail ()
+setVar :: (Monad m) => String -> Val -> Rail m ()
 setVar v x = modify $ \mem ->
   mem { variables = Map.insert v x $ variables mem }
 
-push :: Val -> Rail ()
+push :: (Monad m) => Val -> Rail m ()
 push x = gets stack >>= setStack . (x :)
 
-pop :: Rail Val
+pop :: (Monad m) => Rail m Val
 pop = gets stack >>= \stk -> case stk of
   [] -> err "pop: empty stack"
   x : xs -> setStack xs >> return x
 
 -- | Pops a value and tries to convert it to a Haskell type. Otherwise, throws
 -- an error message which includes the given type name.
-popAs :: (Value a) => String -> Rail a
+popAs :: (Monad m, Value a) => String -> Rail m a
 popAs typ = pop >>= maybe (err $ "popAs: expected " ++ typ) return . fromVal
 
-popStr :: Rail String
+popStr :: (Monad m) => Rail m String
 popStr = popAs "string"
 
-popInt :: Rail Integer
+popInt :: (Monad m) => Rail m Integer
 popInt = popAs "integer"
 
-popBool :: Rail Bool
+popBool :: (Monad m) => Rail m Bool
 popBool = popAs "bool"
 
-popPair :: Rail (Val, Val)
+popPair :: (Monad m) => Rail m (Val, Val)
 popPair = popAs "pair"
 
--- | Executes a single Rail instruction.
-runCommand :: Command -> Rail ()
+-- | Executes a single Rail instruction, in the IO monad.
+runCommand :: Command -> Rail IO ()
 runCommand c = case c of
   Val x -> push x
   Call fun -> gets functions >>= \funs -> case Map.lookup fun funs of
@@ -108,18 +111,18 @@ runCommand c = case c of
   Input -> liftIO getChar' >>= \mc -> case mc of
     Just ch -> push $ toVal [ch]
     Nothing -> err "input: end of file"
-  Equal -> liftA2 equal pop pop >>= push . toVal
-  Greater -> liftA2 (<) popInt popInt >>= push . toVal
+  Equal -> liftM2 equal pop pop >>= push . toVal
+  Greater -> liftM2 (<) popInt popInt >>= push . toVal
   -- (<) because flipped args: we're asking (2nd top of stack) > (top of stack)
   Underflow -> gets stack >>= push . toVal . length
   Type -> pop >>= \v -> push $ toVal $ case v of
     Str _ _ -> "string"
     Nil -> "nil"
     Pair _ _ -> "list"
-  Cons -> liftA2 (flip Pair) pop pop >>= push
+  Cons -> liftM2 (flip Pair) pop pop >>= push
   Uncons -> popPair >>= \(x, y) -> push x >> push y
   Size -> popStr >>= push . toVal . length
-  Append -> liftA2 (flip (++)) popStr popStr >>= push . toVal
+  Append -> liftM2 (flip (++)) popStr popStr >>= push . toVal
   Cut -> do
     i <- fmap fromIntegral popInt
     s <- popStr
@@ -135,17 +138,17 @@ getChar' :: IO (Maybe Char)
 getChar' = Control.Exception.catch (fmap Just getChar) $ \e ->
   if isEOFError e then return Nothing else ioError e
 
-math :: (Integer -> Integer -> Integer) -> Rail ()
-math op = liftA2 (flip op) popInt popInt >>= push . toVal
+math :: (Monad m) => (Integer -> Integer -> Integer) -> Rail m ()
+math op = liftM2 (flip op) popInt popInt >>= push . toVal
 
 equal :: Val -> Val -> Bool
 equal (Str _ (Just x)) (Str _ (Just y)) = x == y
 equal x y = x == y
 
 -- | Runs a piece of code. Does not create a new scope.
-run :: Flow () Result Command -> Rail ()
+run :: (Monad m) => Flow () Result Command -> Rail m ()
 run g = case g of
-  x :>> c       -> runCommand x >> run c
+  x :>> c       -> gets executor >>= ($ x) >> run c
   Branch () x y -> popBool >>= \b -> run $ if b then y else x
   Continue c    -> absurd c
   End e         -> case e of
@@ -154,16 +157,16 @@ run g = case g of
     Internal s -> err s
 
 -- | Runs a function, which creates a new scope for the length of the function.
-call :: Flow () Result Command -> Rail ()
+call :: (Monad m) => Flow () Result Command -> Rail m ()
 call sub = gets variables >>= \vs ->
   setVariables Map.empty >> run sub >> setVariables vs
 
 -- | Given a Rail file, add its functions to an empty memory state.
-compile :: String -> Memory
+compile :: String -> Memory IO
 compile str = emptyMemory
   { functions = Map.fromList $ map (mapSnd flow) $ getFunctions str }
   where mapSnd f (x, y) = (x, f y)
 
 -- | Runs a memory state that has a \"main\" function defined.
-runMemory :: Memory -> IO ()
+runMemory :: Memory IO -> IO ()
 runMemory = runRail $ run $ Call "main" :>> End Return
