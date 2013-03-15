@@ -235,9 +235,8 @@ tryPrimary d c = lookup d $ case c of
   '^'  -> let dirs = [S, NW, NE] in zip dirs dirs
   '>'  -> let dirs = [W, SE, NE] in zip dirs dirs
   '<'  -> let dirs = [E, NW, SW] in zip dirs dirs
-  _    -> if elem c "*beiou?[](){}admrs0123456789cpzn:~fgqt#"
-    then [(d, d)] -- universal junction
-    else []       -- rubble
+  _    -> [(d, d) | elem c "*beiou?[](){}admrs0123456789cpzn:~fgqt#"]
+  -- if c is in this string, it is a universal junction; otherwise rubble.
 
 -- | If the char can be entered indirectly by a train which is facing the given
 -- direction, returns the train's new direction.

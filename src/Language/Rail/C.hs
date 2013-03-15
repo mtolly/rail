@@ -50,7 +50,7 @@ stringLit s = showStringLit s ""
 
 -- | Creates a single, complete C99 file, given a set of Rail functions.
 makeFile :: [(String, System (Posn, Direction) () Result Command)] -> String
-makeFile pairs = header ++ (render $ makeProgram pairs) ++ footer
+makeFile pairs = header ++ render (makeProgram pairs) ++ footer
 
 makeProgram :: [(String, System (Posn, Direction) () Result Command)] -> Doc
 makeProgram pairs = let

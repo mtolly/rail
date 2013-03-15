@@ -25,6 +25,7 @@ import System.IO (isEOF, hPutStr, stderr, hFlush, stdout)
 import System.IO.Error (isEOFError)
 import qualified Control.Exception (catch)
 import Data.Void (absurd)
+import Control.Arrow (second)
 
 -- | The memory state of a running Rail program.
 data Memory m = Memory
@@ -127,23 +128,23 @@ runPure c = case c of
     if 0 <= i && i <= length s
       then case splitAt i s of
         (x, y) -> push (toVal x) >> push (toVal y)
-      else err "cut: string index out of bounds"
+      else err "runPure: cut instruction, string index out of bounds"
   Push var -> getVar var >>= push
   Pop var -> pop >>= setVar var
   EOF -> pureError
   Input -> pureError
   Output -> pureError
-  where pureError = err "runPure: unsupported I/O operation"
+  where pureError = err $ "runPure: unsupported I/O operation " ++ show c
 
 -- | Executes any single Rail instruction, where 'Input', 'Output', and 'EOF'
 -- commands are performed in the 'IO' monad.
 runIO :: Command -> Rail IO ()
 runIO c = case c of
-  EOF -> liftIO isEOF >>= push . toVal
+  EOF    -> liftIO isEOF >>= push . toVal
   Output -> popStr >>= liftIO . putStr >> liftIO (hFlush stdout)
-  Input -> liftIO getChar' >>= \mc -> case mc of
+  Input  -> liftIO getChar' >>= \mc -> case mc of
     Just ch -> push $ toVal [ch]
-    Nothing -> err "input: end of file"
+    Nothing -> err "runIO: end of file"
   _ -> runPure c
 
 -- | Like 'getChar', but catches EOF exceptions and returns Nothing.
@@ -177,8 +178,7 @@ call sub = gets variables >>= \vs ->
 -- | Given a Rail file, add its functions to an empty memory state.
 compile :: String -> Memory IO
 compile str = emptyMemory
-  { functions = Map.fromList $ map (mapSnd flow) $ getFunctions str }
-  where mapSnd f (x, y) = (x, f y)
+  { functions = Map.fromList $ map (second flow) $ getFunctions str }
 
 -- | Runs a memory state that has a \"main\" function defined.
 runMemory :: Memory IO -> IO ()
