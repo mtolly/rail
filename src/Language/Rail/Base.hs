@@ -8,12 +8,14 @@ module Language.Rail.Base
 , Value(..)
 ) where
 
-import Data.Data (Data, Typeable)
-import Data.ControlFlow
-import Data.List (nub)
-import qualified Data.Map as Map
-import Data.Char (isSpace)
 import Control.Applicative (liftA2)
+import Data.Char (isSpace)
+import Data.Data (Data, Typeable)
+import Data.List (nub)
+
+import qualified Data.Map as Map
+
+import Data.ControlFlow
 
 -- | An instruction in a Rail program.
 data Command

@@ -12,20 +12,22 @@ module Language.Rail.Run
 , runMemory
 ) where
 
+import Control.Arrow (second)
+import qualified Control.Exception (catch)
+import Control.Monad (liftM, liftM2)
+import System.IO (isEOF, hPutStr, stderr, hFlush, stdout)
+import System.IO.Error (isEOFError)
+
+import Control.Monad.Trans.State (StateT, modify, gets, evalStateT)
+import Control.Monad.Trans.Error (ErrorT, runErrorT, throwError)
+import Control.Monad.Trans.Class (lift)
+import Control.Monad.IO.Class (liftIO)
+import qualified Data.Map as Map
+import Data.Void (absurd)
+
 import Data.ControlFlow
 import Language.Rail.Base
 import Language.Rail.Parse (getFunctions)
-import qualified Data.Map as Map
-import Control.Monad (liftM, liftM2)
-import Control.Monad.Trans.State
-import Control.Monad.Trans.Error
-import Control.Monad.Trans.Class (lift)
-import Control.Monad.IO.Class (liftIO)
-import System.IO (isEOF, hPutStr, stderr, hFlush, stdout)
-import System.IO.Error (isEOFError)
-import qualified Control.Exception (catch)
-import Data.Void (absurd)
-import Control.Arrow (second)
 
 -- | The memory state of a running Rail program.
 data Memory m = Memory

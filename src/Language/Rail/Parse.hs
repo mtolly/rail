@@ -12,16 +12,18 @@ module Language.Rail.Parse
 , getFunctions
 ) where
 
-import Language.Rail.Base
-import Data.ControlFlow
+import Data.Data (Data, Typeable)
 import Data.List (intercalate)
-import Data.List.Split (splitOn)
-import Data.Array.Unboxed
 import Data.Char (isDigit)
 import Data.Maybe (mapMaybe)
+
+import Control.Monad.Trans.State (gets, modify, execState)
+import Data.Array.Unboxed (UArray, inRange, listArray, (!), (//), bounds)
+import Data.List.Split (splitOn)
 import qualified Data.Map as Map
-import Control.Monad.Trans.State
-import Data.Data (Data, Typeable)
+
+import Language.Rail.Base
+import Data.ControlFlow
 
 -- | A two-dimensional array, where the top-left corner is index @(0, 0)@.
 type Grid = UArray Posn Char

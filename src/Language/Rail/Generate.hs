@@ -9,15 +9,17 @@ module Language.Rail.Generate
 , toFile
 ) where
 
-import Language.Rail.Base
-import Data.ControlFlow
-import Data.Char (isDigit, isPrint)
-import qualified Data.Map as Map
-import Text.Block
-import Control.Monad.Trans.State
 import Control.Monad (forM, forM_)
-import Data.Array.ST
-import Control.Monad.ST
+import Control.Monad.ST (ST, runST)
+import Data.Char (isDigit, isPrint)
+
+import Control.Monad.Trans.State (State, get, modify, execState)
+import Data.Array.ST (STArray, newArray, readArray, writeArray, getBounds)
+import qualified Data.Map as Map
+
+import Data.ControlFlow
+import Language.Rail.Base
+import Text.Block
 
 -- | A string literal, to be read travelling east.
 stringLiteral :: String -> String

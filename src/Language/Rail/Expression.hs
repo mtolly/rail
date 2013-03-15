@@ -3,11 +3,12 @@
 -- expressions, which can translate directly to high-level language expressions.
 module Language.Rail.Expression where
 
-import Language.Rail.Base (Command(), Val(), Result())
-import qualified Language.Rail.Base as R
 import Data.Char (isSpace)
-import Data.ControlFlow
 import Data.List (genericLength)
+
+import Data.ControlFlow
+import qualified Language.Rail.Base as R
+import Language.Rail.Base (Command(), Val(), Result())
 
 -- | An expression is a side-effect-free value that can be converted to a linear
 -- sequence of stack operations. Its value depends only on local variables at

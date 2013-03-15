@@ -3,16 +3,18 @@ module Language.Rail.C
 ( makeFile
 ) where
 
+import Data.Char (toLower, isAscii, isAlphaNum)
+import Data.List (intersperse)
+import System.IO.Unsafe (unsafePerformIO)
+
+import qualified Data.Map as Map
+import Language.C.Syntax.Constants (showStringLit)
+import Text.PrettyPrint.HughesPJ (Doc, text, hcat, vcat, render, nest, ($$))
+
 import Data.ControlFlow
 import Language.Rail.Base
-import Paths_rail (getDataFileName)
-import Data.Char (toLower, isAscii, isAlphaNum)
-import qualified Data.Map as Map
-import Data.List (intersperse)
-import Text.PrettyPrint.HughesPJ (Doc, text, hcat, vcat, render, nest, ($$))
 import Language.Rail.Parse (Posn, Direction)
-import Language.C.Syntax.Constants (showStringLit)
-import System.IO.Unsafe (unsafePerformIO)
+import Paths_rail (getDataFileName)
 
 -- | The definitions of all the built-in functions and memory operations.
 header :: String
