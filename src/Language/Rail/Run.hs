@@ -67,8 +67,8 @@ setVariables vs = modify $ \mem -> mem { variables = vs }
 
 getVar :: (Monad m) => String -> Rail m Val
 getVar v = gets variables >>= \vs -> case Map.lookup v vs of
-  Just x -> return x
   Nothing -> err $ "getVar: undefined variable: " ++ v
+  Just x  -> return x
 
 setVar :: (Monad m) => String -> Val -> Rail m ()
 setVar v x = modify $ \mem ->
@@ -79,7 +79,7 @@ push x = gets stack >>= setStack . (x :)
 
 pop :: (Monad m) => Rail m Val
 pop = gets stack >>= \stk -> case stk of
-  [] -> err "pop: empty stack"
+  []     -> err "pop: empty stack"
   x : xs -> setStack xs >> return x
 
 -- | Pops a value and tries to convert it to a Haskell type. Otherwise, throws
@@ -105,24 +105,24 @@ runPure :: (Monad m) => Command -> Rail m ()
 runPure c = case c of
   Val x -> push x
   Call fun -> gets functions >>= \funs -> case Map.lookup fun funs of
-    Nothing -> err $ "call: undefined function " ++ fun
+    Nothing  -> err $ "call: undefined function " ++ fun
     Just sub -> call sub
-  Add -> math (+)
-  Sub -> math (-)
+  Add  -> math (+)
+  Sub  -> math (-)
   Mult -> math (*)
-  Div -> math div
-  Rem -> math mod
-  Equal -> liftM2 equal pop pop >>= push . toVal
+  Div  -> math div
+  Rem  -> math mod
+  Equal   -> liftM2 equal pop pop     >>= push . toVal
   Greater -> liftM2 (<) popInt popInt >>= push . toVal
   -- (<) because flipped args: we're asking (2nd top of stack) > (top of stack)
   Underflow -> gets stack >>= push . toVal . length
   Type -> pop >>= \v -> push $ toVal $ case v of
-    Str _ _ -> "string"
-    Nil -> "nil"
+    Str  _ _ -> "string"
+    Nil      -> "nil"
     Pair _ _ -> "list"
-  Cons -> liftM2 (flip Pair) pop pop >>= push
+  Cons   -> liftM2 (flip Pair) pop pop >>= push
   Uncons -> popPair >>= \(x, y) -> push x >> push y
-  Size -> popStr >>= push . toVal . length
+  Size   -> popStr >>= push . toVal . length
   Append -> liftM2 (flip (++)) popStr popStr >>= push . toVal
   Cut -> do
     i <- liftM fromIntegral popInt
@@ -132,9 +132,9 @@ runPure c = case c of
         (x, y) -> push (toVal x) >> push (toVal y)
       else err "runPure: cut instruction, string index out of bounds"
   Push var -> getVar var >>= push
-  Pop var -> pop >>= setVar var
-  EOF -> pureError
-  Input -> pureError
+  Pop  var -> pop >>= setVar var
+  EOF    -> pureError
+  Input  -> pureError
   Output -> pureError
   where pureError = err $ "runPure: unsupported I/O operation " ++ show c
 
@@ -168,8 +168,8 @@ run g = case g of
   Branch () x y -> popBool >>= \b -> run $ if b then y else x
   Continue c    -> absurd c
   End e         -> case e of
-    Return -> return ()
-    Boom -> popStr >>= err
+    Return     -> return ()
+    Boom       -> popStr >>= err
     Internal s -> err s
 
 -- | Runs a function, which creates a new scope for the length of the function.
