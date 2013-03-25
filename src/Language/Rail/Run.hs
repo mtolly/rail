@@ -56,8 +56,8 @@ type Rail m = StateT (Memory m) (ErrorT String m)
 runRail :: Rail IO () -> Memory IO -> IO ()
 runRail r mem = runErrorT (evalStateT r mem) >>= either (hPutStr stderr) return
 
-err :: (Monad m) => String -> Rail m a
-err = lift . throwError
+crash :: (Monad m) => String -> Rail m a
+crash = lift . throwError
 
 setStack :: (Monad m) => [Val] -> Rail m ()
 setStack stk = modify $ \mem -> mem { stack = stk }
@@ -67,7 +67,7 @@ setVariables vs = modify $ \mem -> mem { variables = vs }
 
 getVar :: (Monad m) => String -> Rail m Val
 getVar v = gets variables >>= \vs -> case Map.lookup v vs of
-  Nothing -> err $ "getVar: undefined variable: " ++ v
+  Nothing -> crash $ "getVar: undefined variable: " ++ v
   Just x  -> return x
 
 setVar :: (Monad m) => String -> Val -> Rail m ()
@@ -79,13 +79,13 @@ push x = gets stack >>= setStack . (x :)
 
 pop :: (Monad m) => Rail m Val
 pop = gets stack >>= \stk -> case stk of
-  []     -> err "pop: empty stack"
+  []     -> crash "pop: empty stack"
   x : xs -> setStack xs >> return x
 
 -- | Pops a value and tries to convert it to a Haskell type. Otherwise, throws
 -- an error message which includes the given type name.
 popAs :: (Monad m, Value a) => String -> Rail m a
-popAs typ = pop >>= maybe (err $ "popAs: expected " ++ typ) return . fromVal
+popAs typ = pop >>= maybe (crash $ "popAs: expected " ++ typ) return . fromVal
 
 popStr :: (Monad m) => Rail m String
 popStr = popAs "string"
@@ -105,7 +105,7 @@ runPure :: (Monad m) => Command -> Rail m ()
 runPure c = case c of
   Val x -> push x
   Call fun -> gets functions >>= \funs -> case Map.lookup fun funs of
-    Nothing  -> err $ "call: undefined function " ++ fun
+    Nothing  -> crash $ "call: undefined function " ++ fun
     Just sub -> call sub
   Add  -> math (+)
   Sub  -> math (-)
@@ -130,13 +130,13 @@ runPure c = case c of
     if 0 <= i && i <= length s
       then case splitAt i s of
         (x, y) -> push (toVal x) >> push (toVal y)
-      else err "runPure: cut instruction, string index out of bounds"
+      else crash "runPure: cut instruction, string index out of bounds"
   Push var -> getVar var >>= push
   Pop  var -> pop >>= setVar var
   EOF    -> pureError
   Input  -> pureError
   Output -> pureError
-  where pureError = err $ "runPure: unsupported I/O operation " ++ show c
+  where pureError = crash $ "runPure: unsupported I/O operation " ++ show c
 
 -- | Executes any single Rail instruction, where 'Input', 'Output', and 'EOF'
 -- commands are performed in the 'IO' monad.
@@ -146,7 +146,7 @@ runIO c = case c of
   Output -> popStr >>= liftIO . putStr >> liftIO (hFlush stdout)
   Input  -> liftIO getChar' >>= \mc -> case mc of
     Just ch -> push $ toVal [ch]
-    Nothing -> err "runIO: end of file"
+    Nothing -> crash "runIO: end of file"
   _ -> runPure c
 
 -- | Like 'getChar', but catches EOF exceptions and returns Nothing.
@@ -169,8 +169,8 @@ run g = case g of
   Continue c    -> absurd c
   End e         -> case e of
     Return     -> return ()
-    Boom       -> popStr >>= err
-    Internal s -> err s
+    Boom       -> popStr >>= crash
+    Internal s -> crash s
 
 -- | Runs a function, which creates a new scope for the length of the function.
 call :: (Monad m) => Flow () Result Command -> Rail m ()
