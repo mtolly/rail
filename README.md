@@ -1,13 +1,7 @@
-rail
-====
-
-A Rail interpreter and compiler in Haskell, by [Michael Tolly](mailto:miketolly@gmail.com).
-
-For information on the Rail language, see [its page on Esolang](http://esolangs.org/wiki/Rail).
-
-This includes a library and an executable, performing two functions: a Rail
-program can be directly run by a Haskell interpreter, or it can be translated
-to C code, which can then be compiled by any standard C99 compiler.
+[Rail](http://esolangs.org/wiki/Rail) is an esoteric two-dimensional language
+created by [Jonathon Duerig](http://esolangs.org/wiki/User:Duerig).
+This is an interpreter and a C99-backend compiler, written in Haskell by
+[Michael Tolly](mailto:miketolly@gmail.com).
 
 Usage
 =====
