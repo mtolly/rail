@@ -6,13 +6,15 @@ This is an interpreter and a C99-backend compiler, written in Haskell by
 Usage
 =====
 
-After cloning the repository, install the [Haskell Platform](http://www.haskell.org/platform/),
-and install the package using cabal:
+After cloning the repository, install the [Haskell Platform](http://www.haskell.org/platform/)
+(or just `ghc` and `cabal-install`) and install the package with `cabal`:
 
     cd rail
     cabal install
 
-This installs the `rail` library, and the `hrail` executable. To run the executable:
+This installs the `rail` library, and the `hrail` executable. On Mac/Linux it is placed
+in `~/.cabal/bin` by default, so optionally make sure that is in your `$PATH`.
+To run the executable:
 
     hrail input.rail
     hrail -c input.rail output.c
