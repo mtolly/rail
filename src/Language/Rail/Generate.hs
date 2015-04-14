@@ -257,8 +257,9 @@ drawBridge (sr, dr, col) ary = do
 arrayBlock :: STArray s (Int, Int) Char -> ST s Block
 arrayBlock ary = do
   ((r0, c0), (r1, c1)) <- getBounds ary
-  let arrayLine r cf ct = forM [cf .. ct] $ \c -> readArray ary (r, c)
-  ls <- forM [r0 .. r1] $ \r -> arrayLine r c0 c1
+  ls <- forM [r0 .. r1] $ \r ->
+        forM [c0 .. c1] $ \c ->
+        readArray ary (r, c)
   return $ Block ls (c1 - c0 + 1) (r1 - r0 + 1)
 
 ----

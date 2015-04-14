@@ -18,8 +18,15 @@ Data-Dir:           data
 Data-Files:         header.c
 
 Library
-  Build-Depends:    base == 4.*, containers, transformers, array, split, void,
-                    pretty, language-c
+  Build-Depends:
+    base == 4.*
+    , containers
+    , transformers >= 0.4
+    , array
+    , split
+    , void
+    , pretty
+    , language-c
                     
   Exposed-Modules:  Data.ControlFlow
                     Language.Rail.Base

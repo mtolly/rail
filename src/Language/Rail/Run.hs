@@ -19,7 +19,7 @@ import System.IO (isEOF, hPutStr, stderr, hFlush, stdout)
 import System.IO.Error (isEOFError)
 
 import Control.Monad.Trans.State (StateT, modify, gets, evalStateT)
-import Control.Monad.Trans.Error (ErrorT, runErrorT, throwError)
+import Control.Monad.Trans.Except (ExceptT, runExceptT, throwE)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.IO.Class (liftIO)
 import qualified Data.Map as Map
@@ -48,16 +48,16 @@ emptyMemory = Memory
   , executor  = runIO
   }
 
--- | A monad transformer for executing Rail programs, combining 'ErrorT'
+-- | A monad transformer for executing Rail programs, combining 'ExceptT'
 -- (for crash messages) with 'StateT' (for the stack and variables).
-type Rail m = StateT (Memory m) (ErrorT String m)
+type Rail m = StateT (Memory m) (ExceptT String m)
 
 -- | Unwraps the 'Rail' monad into 'IO'. Crash messages are printed to stderr.
 runRail :: Rail IO () -> Memory IO -> IO ()
-runRail r mem = runErrorT (evalStateT r mem) >>= either (hPutStr stderr) return
+runRail r mem = runExceptT (evalStateT r mem) >>= either (hPutStr stderr) return
 
 crash :: (Monad m) => String -> Rail m a
-crash = lift . throwError
+crash = lift . throwE
 
 setStack :: (Monad m) => [Val] -> Rail m ()
 setStack stk = modify $ \mem -> mem { stack = stk }

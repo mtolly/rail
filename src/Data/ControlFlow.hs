@@ -1,8 +1,8 @@
-{-# LANGUAGE
-  DeriveFunctor,
-  DeriveFoldable,
-  DeriveTraversable,
-  DeriveDataTypeable #-}
+{-# LANGUAGE DeriveFunctor      #-}
+{-# LANGUAGE DeriveFoldable     #-}
+{-# LANGUAGE DeriveTraversable  #-}
+{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE CPP                #-}
 -- | A data structure for modeling control flow graphs. Basic blocks can be
 -- constructed separately, with arbitrary IDs attached to each one; you can
 -- then generate a single circular structure for the entire graph, taking up
@@ -28,8 +28,10 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Control.Monad.Trans.State (execState, gets, modify)
 import Control.Monad (unless)
+#if __GLASGOW_HASKELL__ < 710
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
+#endif
 import Data.List (sort, group)
 import Data.Data (Data, Typeable)
 
