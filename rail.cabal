@@ -13,9 +13,9 @@ Author:             Michael Tolly
 Maintainer:         tolly@wisc.edu
 Build-Type:         Simple
 Cabal-Version:      >= 1.8
-Category:           Data
-Data-Dir:           data
-Data-Files:         header.c
+Category:           Language
+Extra-Source-Files:
+  data/header.c
 
 Library
   Build-Depends:
@@ -27,18 +27,21 @@ Library
     , void
     , pretty
     , language-c
-                    
-  Exposed-Modules:  Data.ControlFlow
-                    Language.Rail.Base
-                    Language.Rail.Parse
-                    Language.Rail.Run
-                    Language.Rail.C
-                    Language.Rail.Generate
-                    Language.Rail.Expression
-                    
-  Other-Modules:    Paths_rail
-                    Text.Block
-                    
+    , file-embed
+    , bytestring
+
+  Exposed-Modules:
+    Data.ControlFlow
+    Language.Rail.Base
+    Language.Rail.Parse
+    Language.Rail.Run
+    Language.Rail.C
+    Language.Rail.Generate
+    Language.Rail.Expression
+
+  Other-Modules:
+    Text.Block
+
   hs-source-dirs:   src
   ghc-options:      -Wall
 

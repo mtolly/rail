@@ -240,7 +240,7 @@ bool pop_bool() {
 
 void builtin_boom() {
   char *s = get_str(pop());
-  fprintf(stderr, s);
+  fprintf(stderr, "%s", s);
   // Obviously no need to garbage collect
   exit(0);
 }
@@ -263,7 +263,7 @@ void builtin_input() {
 void builtin_output() {
   struct value *v = pop();
   char *s = get_str(v);
-  printf(s);
+  printf("%s", s);
   collect(v);
 }
 

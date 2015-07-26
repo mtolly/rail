@@ -1,24 +1,25 @@
 -- | A Rail to C compiler. Generates a single file of C99-compliant code.
+{-# LANGUAGE TemplateHaskell #-}
 module Language.Rail.C
 ( makeFile
 ) where
 
 import Data.Char (toLower, isAscii, isAlphaNum)
 import Data.List (intersperse)
-import System.IO.Unsafe (unsafePerformIO)
 
 import qualified Data.Map as Map
 import Language.C.Syntax.Constants (showStringLit)
 import Text.PrettyPrint.HughesPJ (Doc, text, hcat, vcat, render, nest, ($$))
 
+import qualified Data.ByteString.Char8 as B8
 import Data.ControlFlow
 import Language.Rail.Base
 import Language.Rail.Parse (Posn, Direction)
-import Paths_rail (getDataFileName)
+import Data.FileEmbed (embedFile)
 
 -- | The definitions of all the built-in functions and memory operations.
 header :: String
-header = unsafePerformIO $ getDataFileName "header.c" >>= readFile
+header = B8.unpack $(embedFile "data/header.c")
 
 -- | The main function, which simply calls @fun_main()@ (the Rail @main@
 -- function).
